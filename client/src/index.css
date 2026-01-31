@@ -43,9 +43,9 @@
   --chart-3: 262 83% 42%;
   --chart-4: 32 95% 42%;
   --chart-5: 340 82% 38%;
-  --font-sans: Open Sans, sans-serif;
+  --font-sans: Inter, system-ui, sans-serif;
   --font-serif: Georgia, serif;
-  --font-mono: Menlo, monospace;
+  --font-mono: JetBrains Mono, monospace;
   --radius: .5rem;
   --shadow-2xs: 0px 2px 0px 0px hsl(0 0% 0% / 0.00);
   --shadow-xs: 0px 2px 0px 0px hsl(0 0% 0% / 0.00);
@@ -85,6 +85,19 @@
   /* Fallback for older browsers */
   --destructive-border: hsl(var(--destructive));
   --destructive-border: hsl(from hsl(var(--destructive)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
+
+  /* Stock semantic colors - Light mode */
+  --stock-eligible: 142 71% 45%;
+  --stock-eligible-foreground: 142 76% 98%;
+  --stock-eligible-muted: 142 41% 93%;
+  --stock-watch: 38 92% 50%;
+  --stock-watch-foreground: 38 92% 98%;
+  --stock-watch-muted: 38 55% 93%;
+  --stock-reject: 0 72% 51%;
+  --stock-reject-foreground: 0 72% 98%;
+  --stock-reject-muted: 0 45% 93%;
+  --stock-positive: 142 71% 45%;
+  --stock-negative: 0 72% 51%;
 }
 
 .dark {
@@ -163,6 +176,19 @@
   /* Fallback for older browsers */
   --destructive-border: hsl(var(--destructive));
   --destructive-border: hsl(from hsl(var(--destructive)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
+
+  /* Stock semantic colors - Dark mode */
+  --stock-eligible: 142 71% 45%;
+  --stock-eligible-foreground: 142 76% 98%;
+  --stock-eligible-muted: 142 25% 18%;
+  --stock-watch: 38 92% 50%;
+  --stock-watch-foreground: 38 92% 98%;
+  --stock-watch-muted: 38 40% 18%;
+  --stock-reject: 0 72% 51%;
+  --stock-reject-foreground: 0 72% 98%;
+  --stock-reject-muted: 0 35% 18%;
+  --stock-positive: 142 71% 45%;
+  --stock-negative: 0 72% 51%;
 }
 
 @layer base {
