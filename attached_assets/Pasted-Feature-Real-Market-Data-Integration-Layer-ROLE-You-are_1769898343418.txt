@@ -1,0 +1,174 @@
+Feature: Real Market Data Integration Layer
+
+ROLE
+You are a senior backend + domain engineer extending an existing Next.js App Router application.
+Your task is to integrate real financial market data into Deep Dive Stock OS in a way that is:
+	•	Provider-agnostic
+	•	Testable
+	•	Replaceable
+	•	Safe for future scaling
+
+DATA PROVIDERS AVAILABLE
+The app has API keys for:
+	1	FinancialModelingPrep (FMP)
+	2	Marketstack
+	3	Finnhub
+You must not tightly couple logic to any one provider.
+
+CORE DESIGN PRINCIPLE (NON-NEGOTIABLE)
+All external APIs must be normalized into a single internal stock data model.
+No domain logic should ever “know”:
+	•	which provider was used
+	•	how raw API responses look
+
+ENVIRONMENT VARIABLES
+Use environment variables only:
+
+FMP_API_KEY=                          tDr3y7cyxMbDJebwsVHcaFJozkyh9ts3
+MARKETSTACK_API_KEY=       0c613d815a22d99ab21e65785a8f5b10
+FINNHUB_API_KEY=                 d5tdqtpr01qt62niprb0d5tdqtpr01qt62niprbg
+Never expose keys to the client.
+
+REQUIRED ARCHITECTURE ADDITIONS
+Extend the existing project with the following structure:
+
+src/
+├── services/
+│   ├── providers/
+│   │   ├── fmp/
+│   │   │   ├── fetchPrice.ts
+│   │   │   ├── fetchFinancials.ts
+│   │   │   └── fetchTechnicals.ts
+│   │   ├── finnhub/
+│   │   │   ├── fetchSentiment.ts
+│   │   │   ├── fetchOptions.ts
+│   │   │   └── fetchInstitutional.ts
+│   │   └── marketstack/
+│   │       └── fetchHistoricalPrices.ts
+│   │
+│   ├── aggregation/
+│   │   ├── getStockSnapshot.ts
+│   │   └── getHistoricalSeries.ts
+│   │
+│   └── normalization/
+│       ├── normalizePrice.ts
+│       ├── normalizeFinancials.ts
+│       ├── normalizeTechnicals.ts
+│       └── normalizeSentiment.ts
+
+CANONICAL INTERNAL DATA MODELS (IMPORTANT)
+Define strict TypeScript types in shared/types/stock.ts.
+Example (simplified, extend as needed):
+
+export interface StockSnapshot {
+  symbol: string;
+  price: number;
+  changePercent: number;
+  volume: number;
+
+  fundamentals: {
+    revenueGrowthYoY: number[];
+    epsGrowthYoY: number[];
+  };
+
+  technicals: {
+    atr: number;
+    rsi: number;
+    movingAverages: {
+      ma50: number;
+      ma200: number;
+    };
+  };
+
+  sentiment: {
+    putCallRatio?: number;
+    shortInterest?: number;
+    institutionalTrend?: "INCREASING" | "FLAT" | "DECREASING";
+  };
+
+  meta: {
+    dataFreshness: Date;
+    providersUsed: string[];
+  };
+}
+
+PROVIDER RESPONSIBILITIES
+FinancialModelingPrep (FMP)
+Primary source for:
+	•	Price
+	•	Financial statements
+	•	Revenue & EPS growth
+	•	Moving averages
+Marketstack
+Primary source for:
+	•	Historical OHLC data
+	•	Multi-timeframe price series
+Finnhub
+Primary source for:
+	•	Sentiment
+	•	Options data (OI, gamma context)
+	•	Institutional signals
+	•	Short interest
+
+AGGREGATION LOGIC
+Implement a Stock Snapshot Aggregator:
+
+getStockSnapshot(symbol: string): Promise<StockSnapshot>
+Responsibilities:
+	•	Call multiple providers in parallel
+	•	Normalize responses
+	•	Gracefully degrade if a provider fails
+	•	Track which providers were used
+	•	Return one clean object to the domain layer
+
+ERROR HANDLING & RESILIENCE
+	•	No provider failure should crash the app
+	•	Use partial data where possible
+	•	Add warnings in meta.providersUsed
+	•	Surface data gaps as “Low Confidence” flags
+
+INTEGRATION WITH HORIZON ENGINES
+Update both horizon evaluators to consume only:
+
+StockSnapshot
+They must:
+	•	Never call APIs directly
+	•	Never parse raw provider data
+	•	Never reference provider names
+
+CACHING STRATEGY (REPLIT-SAFE)
+	•	Use in-memory caching with TTL
+	•	Cache by symbol
+	•	Short TTL for prices (e.g. 60s)
+	•	Longer TTL for financials (e.g. 6–12h)
+Do NOT assume Redis or external infra.
+
+UI UPDATES
+Update /stocks/[symbol] to:
+	•	Show real price & % change
+	•	Display a Data Confidence Badge:
+	◦	High / Medium / Low
+	•	Gracefully handle missing sections
+	•	Never block rendering if one provider fails
+
+SECURITY & PERFORMANCE
+	•	All API calls must occur in Server Components or server-only services
+	•	Never expose raw API responses to the client
+	•	Never log API keys
+	•	Throttle requests where appropriate
+
+DOCUMENTATION (REQUIRED)
+Add a short README.md section:
+	•	Which provider feeds which data
+	•	How to add a new provider later
+	•	How normalization works
+
+FINAL GOAL
+After this step:
+	•	The app should run with real market data
+	•	Horizon engines should produce real scores
+	•	Adding a new provider should require:
+	◦	A new folder
+	◦	A normalizer
+	◦	No refactor
+Build this cleanly, defensively, and professionally.
