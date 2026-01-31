@@ -1,0 +1,316 @@
+ROLE & EXPECTATIONS
+
+You are a senior full-stack engineer and product architect.
+
+Your task is to build a production-ready stock analysis web application called:
+
+Deep Dive Stock OS
+
+This is NOT a demo or tutorial project.
+Design it so it can scale in features, strategies, and data sources.
+
+The app must run entirely inside Replit.
+
+CORE TECH STACK (MANDATORY)
+
+Next.js (App Router ONLY)
+
+TypeScript (strict mode)
+
+Tailwind CSS
+
+Server Components by default
+
+Client Components only where interactivity is required
+
+No Pages Router
+
+No Vite
+
+No CRA
+
+No legacy patterns
+
+PRODUCT GOAL
+
+Deep Dive Stock OS evaluates stocks using two independent trading horizons:
+
+Strategic Growth Anchor (4–9 months)
+
+Tactical Sentinel (0–4 months)
+
+Each horizon:
+
+Uses its own logic
+
+Produces a Score (0–100)
+
+Produces a Trade Status
+
+Explains WHY / WHY NOT
+
+Is expandable in the future (more strategies later)
+
+This app should feel like an operating system for stock decisions, not a screener.
+
+DESIGN & UX REQUIREMENTS
+Visual Style
+
+Light theme by default
+
+Clean, modern, minimal
+
+Plenty of white space
+
+Subtle card-based layout
+
+Professional (not flashy)
+
+Color Coding (MANDATORY)
+
+Use consistent semantic colors:
+
+🟢 Green → Trade Eligible / Strong Positive
+
+🟡 Orange / Yellow → Caution / Mixed Signals / Watch
+
+🔴 Red → Avoid / High Risk / Failing Criteria
+
+Colors must be:
+
+Soft
+
+Accessible
+
+Easy to override via Tailwind config
+
+HIGH-LEVEL APP STRUCTURE
+Routes
+/                → Dashboard (overview)
+/stocks/[symbol] → Stock Deep Dive (MSFT, AAPL, etc.)
+
+REQUIRED FOLDER STRUCTURE (IMPORTANT)
+
+Design the project so new strategies, data sources, and UI modules can be added without refactoring.
+
+src/
+├── app/
+│   ├── layout.tsx
+│   ├── page.tsx
+│   ├── stocks/
+│   │   └── [symbol]/
+│   │       ├── page.tsx
+│   │       ├── loading.tsx
+│   │       └── error.tsx
+│
+├── domain/
+│   ├── horizons/
+│   │   ├── strategicGrowth/
+│   │   │   ├── evaluator.ts
+│   │   │   ├── scoring.ts
+│   │   │   └── rules.ts
+│   │   └── tacticalSentinel/
+│   │       ├── evaluator.ts
+│   │       ├── scoring.ts
+│   │       └── rules.ts
+│   │
+│   ├── market/
+│   │   ├── regime.ts
+│   │   └── volatility.ts
+│   │
+│   └── portfolio/
+│       └── risk.ts
+│
+├── services/
+│   ├── stocks/
+│   │   ├── fetchStock.ts
+│   │   └── normalize.ts
+│   └── indicators/
+│       └── technicals.ts
+│
+├── shared/
+│   ├── types/
+│   │   ├── stock.ts
+│   │   ├── horizon.ts
+│   │   └── evaluation.ts
+│   └── constants/
+│       └── thresholds.ts
+│
+├── ui/
+│   ├── cards/
+│   ├── badges/
+│   ├── charts/
+│   ├── sections/
+│   └── layout/
+│
+├── lib/
+│   ├── utils.ts
+│   └── formatting.ts
+│
+└── styles/
+    └── globals.css
+
+
+DO NOT mix domain logic with UI components.
+All scoring and decision logic must live in domain/.
+
+STRATEGY IMPLEMENTATION REQUIREMENTS
+Horizon Engines
+
+Implement two independent evaluation engines:
+
+1️⃣ Strategic Growth Anchor Engine
+
+Evaluates:
+
+Risk & portfolio guardrails
+
+Market & volatility regime
+
+Macro alignment
+
+Institutional signals
+
+Fundamental acceleration
+
+Weekly technical structure
+
+Time-based thesis decay
+
+Output:
+
+{
+  score: number; // 0–100
+  status: "ELIGIBLE" | "WATCH" | "REJECT";
+  positives: string[];
+  risks: string[];
+  failureMode: string;
+}
+
+2️⃣ Tactical Sentinel Engine
+
+Evaluates:
+
+Multi-timeframe technical alignment
+
+Momentum regime
+
+Liquidity & volume triggers
+
+Sentiment & options context
+
+Event proximity
+
+Time stop logic
+
+Opportunity ranking
+
+Output:
+
+{
+  score: number;
+  status: "TRADE" | "WATCH" | "AVOID";
+  entryQuality: string[];
+  risks: string[];
+  failureTrigger: string;
+}
+
+UI REQUIREMENTS FOR /stocks/[symbol]
+
+The stock page must include:
+
+1️⃣ Stock Header
+
+Symbol
+
+Company name (placeholder ok)
+
+Price (mock data allowed initially)
+
+Change indicator
+
+2️⃣ Horizon Panels (Side-by-Side or Stacked)
+
+Each horizon panel must show:
+
+Score (large, prominent)
+
+Status badge (green/yellow/red)
+
+Expandable sections:
+
+Positives
+
+Risks
+
+Failure Mode / Trigger
+
+“Explore More” toggle for deeper details
+
+3️⃣ UX DETAILS
+
+Collapsible sections (clean animations)
+
+Tooltips for advanced terms
+
+Consistent spacing
+
+Easily skinnable styles
+
+DATA RULES (IMPORTANT)
+
+Mock data is acceptable initially
+
+Data fetching must be abstracted so:
+
+APIs can be swapped later
+
+Multiple providers can be added
+
+Never hardcode MSFT logic
+
+Symbol must be fully dynamic
+
+NON-NEGOTIABLE ENGINEERING RULES
+
+No any types
+
+No business logic in React components
+
+No inline calculations in JSX
+
+All thresholds configurable
+
+All engines testable in isolation
+
+Keep everything future-proof
+
+FUTURE-READINESS (DESIGN FOR THIS)
+
+The architecture must allow easy addition of:
+
+More horizons
+
+Options strategies
+
+Portfolio-level dashboards
+
+Alerts & notifications
+
+Backtesting modules
+
+Do NOT optimize for speed over correctness.
+
+FINAL INSTRUCTION
+
+Build the app cleanly, incrementally, and correctly.
+
+If something is unclear:
+
+Make a reasonable professional assumption
+
+Document it clearly in comments
+
+This app should feel like:
+
+“A serious decision system built by someone who actually trades.”
