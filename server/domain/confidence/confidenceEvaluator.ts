@@ -21,14 +21,17 @@ export interface ConfidenceInputs {
 }
 
 const PROVIDER_WEIGHTS: Record<string, number> = {
-  "Finnhub-Quote": 20,
-  "FMP-Price": 15,
-  "Marketstack-Quote": 10,
-  "FMP-Financials": 15,
-  "FMP-Technicals": 15,
+  "TwelveData-Quote": 30,
+  "TwelveData-OHLC": 20,
+  "Mock-Quote": 5,
+  "Mock-OHLC": 5,
+  "Computed-Technicals": 15,
   "Finnhub-Sentiment": 10,
   "Finnhub-Institutional": 5,
   "Finnhub-Options": 5,
+  "Mock-Fundamentals": 10,
+  "Mock-Sentiment": 3,
+  "Mock-Options": 2,
   "Marketstack-Historical": 5,
 };
 

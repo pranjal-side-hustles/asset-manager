@@ -11,6 +11,25 @@ import { twelveDataProvider } from "./twelveDataProvider";
 import { mockProvider } from "./mockProvider";
 import { logger } from "../../../infra/logging/logger";
 
+const STALENESS_THRESHOLD_MS = 60 * 1000;
+
+export interface CanonicalPrice {
+  symbol: string;
+  price: number;
+  change: number;
+  changePercent: number;
+  timestamp: number;
+  source: "TwelveData";
+  isStale: boolean;
+  ageSeconds: number;
+}
+
+export interface PriceResult {
+  success: boolean;
+  data: CanonicalPrice | null;
+  error?: string;
+}
+
 export interface AggregatedMarketData {
   quote: PriceQuote;
   ohlc: OHLCCandle[];
@@ -18,10 +37,78 @@ export interface AggregatedMarketData {
   fundamentals: FundamentalsData;
   sentiment: SentimentData;
   options: OptionsData;
+  priceStatus: {
+    source: string;
+    isStale: boolean;
+    ageSeconds: number;
+    timestamp: number;
+  };
   meta: {
     providersUsed: string[];
     providersFailed: string[];
     timestamp: number;
+  };
+}
+
+export async function getCurrentPrice(symbol: string): Promise<PriceResult> {
+  const upperSymbol = symbol.toUpperCase();
+  const log = logger.withContext({ symbol: upperSymbol });
+
+  if (!twelveDataProvider.isAvailable()) {
+    log.providerFailure("TwelveData not available for price quote");
+    return {
+      success: false,
+      data: null,
+      error: "Price provider unavailable",
+    };
+  }
+
+  const quoteResult = await twelveDataProvider.getQuote(upperSymbol);
+
+  if (!quoteResult.success || !quoteResult.data) {
+    log.providerFailure(`Failed to fetch price for ${upperSymbol} from TwelveData`);
+    return {
+      success: false,
+      data: null,
+      error: "Failed to fetch price from TwelveData",
+    };
+  }
+
+  const now = Date.now();
+  const priceTimestamp = quoteResult.data.timestamp;
+  const ageMs = now - priceTimestamp;
+  const ageSeconds = Math.round(ageMs / 1000);
+  const isStale = ageMs > STALENESS_THRESHOLD_MS;
+
+  if (isStale) {
+    log.warn("PROVIDER_FAILURE", `Price for ${upperSymbol} is stale (${ageSeconds}s old)`, {
+      price: quoteResult.data.price,
+      timestamp: priceTimestamp,
+      ageSeconds,
+      source: "TwelveData",
+    });
+  } else {
+    log.dataFetch(`Price for ${upperSymbol} from TwelveData`, {
+      price: quoteResult.data.price,
+      timestamp: priceTimestamp,
+      ageSeconds,
+      source: "TwelveData",
+      isStale: false,
+    });
+  }
+
+  return {
+    success: true,
+    data: {
+      symbol: upperSymbol,
+      price: quoteResult.data.price,
+      change: quoteResult.data.change,
+      changePercent: quoteResult.data.changePercent,
+      timestamp: priceTimestamp,
+      source: "TwelveData",
+      isStale,
+      ageSeconds,
+    },
   };
 }
 
@@ -95,51 +182,72 @@ export async function getMarketData(symbol: string): Promise<AggregatedMarketDat
   let quote: PriceQuote;
   let ohlc: OHLCCandle[];
   let technicals: TechnicalIndicators;
-  let priceProvider = "Mock";
-  let ohlcProvider = "Mock";
+  let priceSource = "Mock";
+  let priceTimestamp = Date.now();
+  let priceIsStale = false;
+  let priceAgeSeconds = 0;
 
   if (useTwelveData) {
-    const quoteResult = await twelveDataProvider.getQuote(upperSymbol);
-    if (quoteResult.success && quoteResult.data) {
-      quote = quoteResult.data;
-      priceProvider = "TwelveData";
-      log.dataFetch("Quote from TwelveData", { price: quote.price });
+    const priceResult = await getCurrentPrice(upperSymbol);
+    
+    if (priceResult.success && priceResult.data) {
+      quote = {
+        symbol: priceResult.data.symbol,
+        price: priceResult.data.price,
+        change: priceResult.data.change,
+        changePercent: priceResult.data.changePercent,
+        open: 0,
+        high: 0,
+        low: 0,
+        previousClose: 0,
+        volume: 0,
+        timestamp: priceResult.data.timestamp,
+      };
+      priceSource = "TwelveData";
+      priceTimestamp = priceResult.data.timestamp;
+      priceIsStale = priceResult.data.isStale;
+      priceAgeSeconds = priceResult.data.ageSeconds;
+      providersUsed.push("TwelveData-Quote");
     } else {
+      log.providerFailure("Price unavailable from TwelveData - using mock data");
       const mockQuote = await mockProvider.getQuote(upperSymbol);
       quote = mockQuote.data!;
-      priceProvider = "Mock";
+      priceSource = "Mock";
       providersFailed.push("TwelveData-Quote");
-      log.fallback("Quote failed from TwelveData, using Mock");
+      providersUsed.push("Mock-Quote");
     }
 
     const ohlcResult = await twelveDataProvider.getOHLC(upperSymbol, "1day", 200);
     if (ohlcResult.success && ohlcResult.data && ohlcResult.data.length > 0) {
       ohlc = ohlcResult.data;
-      ohlcProvider = "TwelveData";
       technicals = computeTechnicalsFromOHLC(ohlc, quote.price);
-      log.dataFetch("OHLC+Technicals from TwelveData time_series", { candles: ohlc.length });
+      providersUsed.push("TwelveData-OHLC");
+      log.dataFetch("OHLC+Technicals from TwelveData", { candles: ohlc.length });
     } else {
       const mockOhlc = await mockProvider.getOHLC(upperSymbol, "1day", 100);
       ohlc = mockOhlc.data || [];
-      ohlcProvider = "Mock";
       technicals = computeTechnicalsFromOHLC(ohlc, quote.price);
       providersFailed.push("TwelveData-OHLC");
-      log.fallback("OHLC failed from TwelveData, using Mock bundle");
+      providersUsed.push("Mock-OHLC");
+      log.fallback("OHLC failed from TwelveData, using computed values");
     }
   } else {
+    log.providerFailure("TwelveData not configured - no real-time prices available");
     const mockQuote = await mockProvider.getQuote(upperSymbol);
     quote = mockQuote.data!;
+    priceSource = "Mock";
+    providersFailed.push("TwelveData-Quote");
+    providersFailed.push("TwelveData-OHLC");
+    providersUsed.push("Mock-Quote");
     
     const mockOhlc = await mockProvider.getOHLC(upperSymbol, "1day", 100);
     ohlc = mockOhlc.data || [];
+    providersUsed.push("Mock-OHLC");
     
     technicals = computeTechnicalsFromOHLC(ohlc, quote.price);
-    log.dataFetch("All data from Mock provider", { price: quote.price });
   }
 
-  providersUsed.push(`${priceProvider}-Quote`);
-  providersUsed.push(`${ohlcProvider}-OHLC`);
-  providersUsed.push(`${ohlcProvider}-Technicals`);
+  providersUsed.push("Computed-Technicals");
 
   const [fundamentalsResult, sentimentResult, optionsResult] = await Promise.all([
     mockProvider.getFundamentals(upperSymbol),
@@ -160,6 +268,12 @@ export async function getMarketData(symbol: string): Promise<AggregatedMarketDat
     fundamentals,
     sentiment,
     options,
+    priceStatus: {
+      source: priceSource,
+      isStale: priceIsStale,
+      ageSeconds: priceAgeSeconds,
+      timestamp: priceTimestamp,
+    },
     meta: {
       providersUsed,
       providersFailed,

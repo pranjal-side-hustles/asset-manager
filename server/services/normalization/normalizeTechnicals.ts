@@ -1,27 +1,29 @@
 import type { StockTechnicals } from "@shared/types";
-import type { FMPTechnicalsData } from "../providers/fmp";
-import type { FMPPriceData } from "../providers/fmp";
+import type { TechnicalIndicators, PriceQuote } from "../providers/adapter/types";
 
-export function normalizeFMPTechnicals(
-  techData: FMPTechnicalsData | null,
-  priceData: FMPPriceData | null
+export function normalizeTechnicals(
+  techData: TechnicalIndicators | null,
+  priceData: PriceQuote | null
 ): Partial<StockTechnicals> {
   if (!techData) return {};
 
-  const currentPrice = techData.currentPrice || priceData?.price || 0;
+  const currentPrice = priceData?.price || 0;
+  const sma20 = techData.sma20 ?? 0;
+  const sma50 = techData.sma50 ?? 0;
+  const sma200 = techData.sma200 ?? 0;
 
   return {
-    atr: techData.atr,
-    atrPercent: techData.atrPercent,
-    rsi: techData.rsi,
+    atr: techData.atr ?? 0,
+    atrPercent: techData.atrPercent ?? 0,
+    rsi: techData.rsi ?? 50,
     movingAverages: {
-      ma20: techData.ma20,
-      ma50: techData.ma50 || priceData?.ma50 || 0,
-      ma200: techData.ma200 || priceData?.ma200 || 0,
+      ma20: sma20,
+      ma50: sma50,
+      ma200: sma200,
     },
-    priceVsMA50: techData.ma50 > 0 ? ((currentPrice - techData.ma50) / techData.ma50) * 100 : 0,
-    priceVsMA200: techData.ma200 > 0 ? ((currentPrice - techData.ma200) / techData.ma200) * 100 : 0,
-    weeklyTrend: techData.weeklyTrend,
-    dailyTrend: techData.dailyTrend,
+    priceVsMA50: sma50 > 0 ? ((currentPrice - sma50) / sma50) * 100 : 0,
+    priceVsMA200: sma200 > 0 ? ((currentPrice - sma200) / sma200) * 100 : 0,
+    weeklyTrend: "SIDEWAYS",
+    dailyTrend: "SIDEWAYS",
   };
 }

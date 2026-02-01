@@ -56,14 +56,16 @@ The application is built with a modern web stack: **React + TypeScript + Vite** 
 
 The application integrates with several third-party financial data providers:
 
--   **FinancialModelingPrep (FMP)**: Provides price quotes, company profiles, financial statements, moving averages, and historical prices for technical indicators.
--   **Finnhub**: Serves as the primary source for real-time price quotes, analyst sentiment, insider activity, institutional ownership, and options data (open interest, put/call ratio).
--   **Marketstack**: Used for historical OHLC (Open, High, Low, Close) price series, primarily as a fallback data source.
+-   **Twelve Data** (Primary): The canonical source for all real-time price quotes, OHLC data, and technical indicators. Includes 60-second staleness checking with dev logging for price verification.
+-   **Finnhub** (Secondary): Restricted to sentiment data, institutional ownership, and options data (open interest, put/call ratio). **NOT used for price quotes.**
+-   **Marketstack** (Fallback): Used for historical OHLC (Open, High, Low, Close) price series as a backup data source.
 
 **API Key Requirements**:
--   **Finnhub**: Requires a free tier API key.
--   **FMP**: Requires a valid API key from their current (non-legacy) tier.
--   **Marketstack**: Requires an HTTPS-enabled (paid tier) API key for production use; the free tier is limited to HTTP.
+-   **TWELVE_DATA_API_KEY**: Required for real-time prices and market data. Free tier: 800 API credits/day.
+-   **FINNHUB_API_KEY**: Required for sentiment and options data. Free tier available.
+-   **MARKETSTACK_API_KEY**: Requires an HTTPS-enabled (paid tier) API key for production use.
+
+**Price Staleness Detection**: Prices older than 60 seconds are flagged as stale with detailed logging including provider, price, timestamp, and age in seconds.
 
 ## Phase 2 Engines (Read-Only Intelligence)
 
@@ -167,29 +169,36 @@ The provider adapter layer abstracts data fetching with automatic fallback to en
 ```
 server/services/providers/adapter/
 ├── types.ts              # MarketDataProvider interface
-├── twelveDataProvider.ts # Twelve Data API (OHLC, indicators)
+├── twelveDataProvider.ts # Twelve Data API (quotes, OHLC, indicators)
 ├── mockProvider.ts       # Fallback with realistic mock data
-├── providerRouter.ts     # Routing logic with fallback
+├── providerRouter.ts     # Routing logic with staleness checking
 └── index.ts              # Exports
 ```
 
+### Core Functions
+- **getCurrentPrice(symbol)**: Returns canonical price with staleness detection (60s threshold)
+- **getMarketData(symbol)**: Aggregates quotes, OHLC, technicals with priceStatus metadata
+
 ### Providers
-- **TwelveDataProvider**: Primary for OHLC candles, RSI, SMA (20/50/200), EMA, ATR
+- **TwelveDataProvider**: Canonical source for quotes, OHLC candles, RSI, SMA (20/50/200), EMA, ATR
+- **Finnhub**: Sentiment, institutional ownership, options only (NO price quotes)
 - **MockProvider**: Always-available fallback with realistic stock data
 
 ### Routing Logic
 1. If `TWELVE_DATA_API_KEY` is set → Use Twelve Data for price/technicals
-2. If Twelve Data fails → Fallback to MockProvider
-3. Fundamentals, sentiment, options → Always use MockProvider in dev
+2. If Twelve Data fails → Mark price as "Unavailable", use fallback for OHLC
+3. Staleness check: Prices >60 seconds old are flagged with detailed logging
+4. Finnhub: ONLY for sentiment, institutional, options data
 
 ### Key Design Decisions
+- **Twelve Data is ONLY price source** - no fallback to other providers for prices
 - Engine execution NEVER blocks due to API failures
+- Price staleness logged with provider, timestamp, age in seconds
 - MockProvider provides realistic data for all 9 tracked stocks
-- No retries - immediate fallback on failure
-- All data types have guaranteed fallback values
 
 ### Environment Variables
-- `TWELVE_DATA_API_KEY`: Optional. If set, enables Twelve Data for real market data
+- `TWELVE_DATA_API_KEY`: Required for real-time market data
+- `FINNHUB_API_KEY`: Required for sentiment and options data
 
 ## Recent Features
 

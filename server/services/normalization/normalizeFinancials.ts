@@ -1,16 +1,12 @@
 import type { StockFundamentals } from "@shared/types";
-import type { FMPFinancialsData } from "../providers/fmp";
+import type { FundamentalsData } from "../providers/adapter/types";
 
-export function normalizeFMPFinancials(data: FMPFinancialsData | null): Partial<StockFundamentals> {
+export function normalizeFundamentals(data: FundamentalsData | null): Partial<StockFundamentals> {
   if (!data) return {};
 
   return {
-    revenueGrowthYoY: data.revenueGrowthYoY,
-    epsGrowthYoY: data.epsGrowthYoY,
+    revenueGrowthYoY: data.revenueGrowthYoY || [],
+    epsGrowthYoY: data.epsGrowthYoY || [],
     peRatio: data.peRatio,
-    forwardPE: data.forwardPE,
-    priceToBook: data.priceToBook,
-    debtToEquity: data.debtToEquity,
-    freeCashFlowYield: data.freeCashFlowYield,
   };
 }

@@ -1,21 +1,20 @@
 import type { PartialStockData } from "@shared/types";
-import type { FMPPriceData } from "../providers/fmp";
 import type { MarketstackPriceQuote } from "../providers/marketstack";
-import type { FinnhubPriceQuote } from "../providers/finnhub";
+import type { PriceQuote } from "../providers/adapter/types";
 
-export function normalizeFMPPrice(data: FMPPriceData | null): PartialStockData["price"] {
+export function normalizeTwelveDataQuote(data: PriceQuote | null, symbol: string): PartialStockData["price"] {
   if (!data) return undefined;
 
   return {
-    symbol: data.symbol,
-    companyName: data.companyName,
+    symbol: data.symbol || symbol,
+    companyName: symbol,
     price: data.price,
     change: data.change,
     changePercent: data.changePercent,
-    volume: data.volume,
-    marketCap: data.marketCap,
-    sector: data.sector,
-    industry: data.industry,
+    volume: data.volume || 0,
+    marketCap: 0,
+    sector: "Unknown",
+    industry: "Unknown",
     high: data.high,
     low: data.low,
     open: data.open,
@@ -44,25 +43,5 @@ export function normalizeMarketstackQuote(data: MarketstackPriceQuote | null, sy
     low: data.low,
     open: data.open,
     previousClose,
-  };
-}
-
-export function normalizeFinnhubQuote(data: FinnhubPriceQuote | null, symbol: string): PartialStockData["price"] {
-  if (!data) return undefined;
-
-  return {
-    symbol: data.symbol || symbol,
-    companyName: symbol,
-    price: data.price,
-    change: data.change,
-    changePercent: data.changePercent,
-    volume: 0,
-    marketCap: 0,
-    sector: "Unknown",
-    industry: "Unknown",
-    high: data.high,
-    low: data.low,
-    open: data.open,
-    previousClose: data.previousClose,
   };
 }

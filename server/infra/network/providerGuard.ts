@@ -114,7 +114,7 @@ class ProviderGuard {
   }
 
   getAllHealth(): ProviderHealth[] {
-    const providers = ["Finnhub", "FMP", "Marketstack"];
+    const providers = ["TwelveData", "Finnhub", "Marketstack"];
     return providers.map(p => this.getHealth(p));
   }
 
