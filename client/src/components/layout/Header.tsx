@@ -22,13 +22,19 @@ export function Header() {
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between gap-4">
           <Link href="/">
-            <div className="flex items-center gap-2 cursor-pointer" data-testid="link-home">
+            <div
+              className="flex items-center gap-2 cursor-pointer"
+              data-testid="link-home"
+            >
               <div className="p-1.5 rounded-lg bg-primary">
                 <Activity className="w-5 h-5 text-primary-foreground" />
               </div>
               <div className="hidden sm:block">
-                <span className="font-bold text-lg">Deep Dive</span>
-                <span className="text-muted-foreground text-lg ml-1">Stock OS</span>
+                <span className="font-bold text-lg">TradeMatrix</span>
+                <span className="text-muted-foreground text-lg ml-1">
+                  {" "}
+                  — Market Intelligence
+                </span>
               </div>
             </div>
           </Link>
@@ -48,7 +54,12 @@ export function Header() {
           </form>
 
           <nav className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" asChild data-testid="button-dashboard">
+            <Button
+              variant="ghost"
+              size="sm"
+              asChild
+              data-testid="button-dashboard"
+            >
               <Link href="/">Dashboard</Link>
             </Button>
           </nav>
