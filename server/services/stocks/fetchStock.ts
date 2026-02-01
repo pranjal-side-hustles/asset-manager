@@ -7,6 +7,10 @@ import { convertSnapshotToStrategicInputs } from "../../domain/horizons/strategi
 import { convertSnapshotToTacticalInputs } from "../../domain/horizons/tacticalSentinel/snapshotConverter";
 import { getMarketContext } from "../../domain/marketContext/marketContextEngine";
 import { logger } from "../../infra/logging/logger";
+import { evaluateSectorRegime, type SectorInputs } from "../../domain/sectorRegime/sectorRegimeEngine";
+import { evaluatePortfolioConstraints } from "../../domain/portfolio/portfolioConstraintEngine";
+import { rankStocks } from "../../domain/ranking/relativeRankingEngine";
+import type { PortfolioSnapshot } from "@shared/types/portfolio";
 
 const TRACKED_SYMBOLS = ["AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "TSLA", "JPM", "V"];
 
@@ -95,6 +99,34 @@ export async function fetchStockEvaluation(symbol: string): Promise<ExtendedStoc
   };
 }
 
+// Mock portfolio snapshot for Phase 2 (will be replaced with real portfolio data later)
+function getMockPortfolioSnapshot(): PortfolioSnapshot {
+  return {
+    totalCapital: 100000,
+    sectorExposurePct: {},
+    correlatedExposurePct: {},
+    volatilityUsedPct: 30,
+  };
+}
+
+// Derive sector inputs from market context
+function deriveSectorInputs(sector: string, marketContext: MarketContext): SectorInputs {
+  const sectorData = marketContext.sectors?.find(s => 
+    s.name.toUpperCase().includes(sector.toUpperCase()) ||
+    sector.toUpperCase().includes(s.name.toUpperCase())
+  );
+  
+  return {
+    relativeStrength: sectorData?.trend === "LEADING" ? "UP" : 
+                      sectorData?.trend === "LAGGING" ? "DOWN" : "FLAT",
+    trendHealth: marketContext.regime === "RISK_ON" ? "STRONG" :
+                 marketContext.regime === "RISK_OFF" ? "WEAK" : "NEUTRAL",
+    volatility: marketContext.volatility?.isElevated ? "HIGH" : "NORMAL",
+    macroAlignment: marketContext.regime === "RISK_ON" ? "TAILWIND" :
+                    marketContext.regime === "RISK_OFF" ? "HEADWIND" : "NEUTRAL",
+  };
+}
+
 export async function fetchDashboardStocks(): Promise<DashboardStock[]> {
   const [results, marketContextSnapshot] = await Promise.all([
     Promise.allSettled(TRACKED_SYMBOLS.map(symbol => getStockSnapshot(symbol))),
@@ -102,7 +134,17 @@ export async function fetchDashboardStocks(): Promise<DashboardStock[]> {
   ]);
   
   const marketContext = marketContextSnapshot.context;
-  const dashboardStocks: DashboardStock[] = [];
+  const portfolio = getMockPortfolioSnapshot();
+  
+  // First pass: evaluate all stocks
+  const evaluatedStocks: Array<{
+    snapshot: StockSnapshot;
+    strategicGrowth: ReturnType<typeof evaluateStrategicGrowth>;
+    tacticalSentinel: ReturnType<typeof evaluateTacticalSentinel>;
+    sector: string;
+    sectorRegime: "FAVORED" | "NEUTRAL" | "AVOID";
+    portfolioAction: "ALLOW" | "REDUCE" | "BLOCK";
+  }> = [];
   
   for (let i = 0; i < results.length; i++) {
     const result = results[i];
@@ -110,6 +152,7 @@ export async function fetchDashboardStocks(): Promise<DashboardStock[]> {
     
     if (result.status === "fulfilled" && result.value) {
       const snapshot = result.value;
+      const sector = snapshot.sector || "Unknown";
       
       const strategicInputs = convertSnapshotToStrategicInputs(snapshot);
       const tacticalInputs = convertSnapshotToTacticalInputs(snapshot);
@@ -117,21 +160,67 @@ export async function fetchDashboardStocks(): Promise<DashboardStock[]> {
       const strategicGrowth = evaluateStrategicGrowth(strategicInputs, symbol, marketContext);
       const tacticalSentinel = evaluateTacticalSentinel(tacticalInputs, symbol, marketContext);
       
-      dashboardStocks.push({
-        symbol: snapshot.symbol,
-        companyName: snapshot.companyName,
-        price: snapshot.price,
-        change: snapshot.change,
-        changePercent: snapshot.changePercent,
-        strategicScore: strategicGrowth.score,
-        strategicStatus: strategicGrowth.status,
-        tacticalScore: tacticalSentinel.score,
-        tacticalStatus: tacticalSentinel.status,
+      // Phase 2: Sector regime evaluation
+      const sectorInputs = deriveSectorInputs(sector, marketContext);
+      const sectorResult = evaluateSectorRegime(sector, sectorInputs);
+      
+      // Phase 2: Portfolio constraints
+      const constraintResult = evaluatePortfolioConstraints(portfolio, {
+        sector,
+        sectorRegime: sectorResult.regime,
+        expectedVolatilityPct: Math.abs(snapshot.changePercent) || 2,
+      });
+      
+      evaluatedStocks.push({
+        snapshot,
+        strategicGrowth,
+        tacticalSentinel,
+        sector,
+        sectorRegime: sectorResult.regime,
+        portfolioAction: constraintResult.action,
       });
     } else {
       logger.withContext({ symbol }).warn("DATA_FETCH", "Failed to fetch data for dashboard");
     }
   }
+  
+  // Phase 2: Rank stocks
+  const rankingInputs = evaluatedStocks.map(s => ({
+    symbol: s.snapshot.symbol,
+    sector: s.sector,
+    strategicScore: s.strategicGrowth.score,
+    tacticalScore: s.tacticalSentinel.score,
+    strategicStatus: s.strategicGrowth.status,
+    tacticalStatus: s.tacticalSentinel.status,
+    sectorRegime: s.sectorRegime,
+    portfolioAction: s.portfolioAction,
+  }));
+  
+  const rankedStocks = rankStocks(rankingInputs);
+  
+  // Build final dashboard stocks with Phase 2 data
+  const dashboardStocks: DashboardStock[] = evaluatedStocks.map(s => {
+    const ranked = rankedStocks.find(r => r.symbol === s.snapshot.symbol);
+    
+    return {
+      symbol: s.snapshot.symbol,
+      companyName: s.snapshot.companyName,
+      price: s.snapshot.price,
+      change: s.snapshot.change,
+      changePercent: s.snapshot.changePercent,
+      strategicScore: s.strategicGrowth.score,
+      strategicStatus: s.strategicGrowth.status,
+      tacticalScore: s.tacticalSentinel.score,
+      tacticalStatus: s.tacticalSentinel.status,
+      // Phase 2 fields
+      sector: s.sector,
+      sectorRegime: s.sectorRegime,
+      portfolioAction: s.portfolioAction,
+      capitalPriority: ranked?.capitalPriority || "WATCH",
+      rankInSector: ranked?.rankInSector,
+      phase2Reasons: ranked?.reasons,
+    };
+  });
   
   return dashboardStocks;
 }

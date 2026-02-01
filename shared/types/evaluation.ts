@@ -32,6 +32,13 @@ export interface DashboardStock {
   strategicStatus: StrategicGrowthStatus;
   tacticalScore: number;
   tacticalStatus: TacticalSentinelStatus;
+  // Phase 2 fields (optional for backward compatibility)
+  sector?: string;
+  sectorRegime?: "FAVORED" | "NEUTRAL" | "AVOID";
+  portfolioAction?: "ALLOW" | "REDUCE" | "BLOCK";
+  capitalPriority?: "BUY" | "ACCUMULATE" | "PILOT" | "WATCH" | "BLOCKED";
+  rankInSector?: number;
+  phase2Reasons?: string[];
 }
 
 export interface DashboardResponse {

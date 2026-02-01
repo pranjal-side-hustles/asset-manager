@@ -4,7 +4,7 @@ import { StockCard } from "@/components/stock/StockCard";
 import { MarketContextPanel } from "@/components/market";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Activity, TrendingUp, Shield, AlertCircle, RefreshCw } from "lucide-react";
+import { Activity, TrendingUp, Shield, AlertCircle, RefreshCw, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { DashboardResponse } from "@shared/types";
 
@@ -44,6 +44,49 @@ function DashboardSkeleton() {
 interface StatsCardsProps {
   stocks: DashboardResponse["stocks"];
   marketRegime?: DashboardResponse["marketRegime"];
+}
+
+interface CapitalActionsProps {
+  stocks: DashboardResponse["stocks"];
+}
+
+function CapitalActionsCard({ stocks }: CapitalActionsProps) {
+  const buyCount = stocks.filter(s => s.capitalPriority === "BUY").length;
+  const accumulateCount = stocks.filter(s => s.capitalPriority === "ACCUMULATE").length;
+  const pilotCount = stocks.filter(s => s.capitalPriority === "PILOT").length;
+  const blockedCount = stocks.filter(s => s.capitalPriority === "BLOCKED").length;
+  
+  // Only show if we have Phase 2 data
+  if (!stocks.some(s => s.capitalPriority)) return null;
+  
+  return (
+    <Card className="mb-6">
+      <CardContent className="p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <Target className="w-4 h-4 text-muted-foreground" />
+          <h3 className="text-sm font-medium text-muted-foreground">Capital Actions</h3>
+        </div>
+        <div className="grid grid-cols-4 gap-4">
+          <div className="text-center">
+            <p className="text-xl font-bold text-green-600 dark:text-green-400" data-testid="text-buy-count">{buyCount}</p>
+            <p className="text-xs text-muted-foreground">BUY</p>
+          </div>
+          <div className="text-center">
+            <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400" data-testid="text-accumulate-count">{accumulateCount}</p>
+            <p className="text-xs text-muted-foreground">ACCUMULATE</p>
+          </div>
+          <div className="text-center">
+            <p className="text-xl font-bold text-blue-600 dark:text-blue-400" data-testid="text-pilot-count">{pilotCount}</p>
+            <p className="text-xs text-muted-foreground">PILOT</p>
+          </div>
+          <div className="text-center">
+            <p className="text-xl font-bold text-gray-500" data-testid="text-blocked-count">{blockedCount}</p>
+            <p className="text-xs text-muted-foreground">BLOCKED</p>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
 }
 
 function getStrategicSubtitle(avgScore: number, regime?: string): string {
@@ -203,6 +246,7 @@ export default function Dashboard() {
           <>
             <MarketContextPanel />
             <StatsCards stocks={data.stocks} marketRegime={data.marketRegime} />
+            <CapitalActionsCard stocks={data.stocks} />
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {data.stocks.map((stock) => (
                 <StockCard key={stock.symbol} stock={stock} />

@@ -4,6 +4,8 @@ import { TrendingUp, TrendingDown, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
 import { ScoreCircle } from "./ScoreCircle";
 import { StatusBadge } from "./StatusBadge";
+import { CapitalPriorityBadge } from "./CapitalPriorityBadge";
+import { Phase2Explainer } from "./Phase2Explainer";
 import type { DashboardStock } from "@shared/types";
 
 interface StockCardProps {
@@ -26,11 +28,34 @@ export function StockCard({ stock }: StockCardProps) {
                 <h3 className="text-lg font-bold" data-testid={`text-symbol-${stock.symbol.toLowerCase()}`}>
                   {stock.symbol}
                 </h3>
+                {stock.capitalPriority && (
+                  <CapitalPriorityBadge priority={stock.capitalPriority} />
+                )}
                 <ArrowRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
               </div>
               <p className="text-sm text-muted-foreground line-clamp-1">
                 {stock.companyName}
               </p>
+              {stock.sector && stock.sector !== "Unknown" && (
+                <p className="text-xs text-muted-foreground/70">
+                  {stock.sector}
+                  {stock.sectorRegime && (
+                    <span className={cn(
+                      "ml-1",
+                      stock.sectorRegime === "FAVORED" ? "text-stock-eligible" :
+                      stock.sectorRegime === "AVOID" ? "text-stock-reject" :
+                      "text-stock-watch"
+                    )}>
+                      ({stock.sectorRegime})
+                    </span>
+                  )}
+                </p>
+              )}
+              {stock.portfolioAction && stock.portfolioAction !== "ALLOW" && (
+                <p className="text-xs text-stock-watch">
+                  Portfolio: {stock.portfolioAction}
+                </p>
+              )}
             </div>
             <div className="text-right">
               <p className="text-lg font-semibold">
@@ -111,6 +136,17 @@ export function StockCard({ stock }: StockCardProps) {
               </div>
             </div>
           </div>
+
+          {stock.capitalPriority && (
+            <Phase2Explainer
+              capitalPriority={stock.capitalPriority}
+              sector={stock.sector}
+              sectorRegime={stock.sectorRegime}
+              portfolioAction={stock.portfolioAction}
+              rankInSector={stock.rankInSector}
+              reasons={stock.phase2Reasons}
+            />
+          )}
         </CardContent>
       </Card>
     </Link>

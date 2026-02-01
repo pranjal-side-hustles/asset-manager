@@ -1,0 +1,172 @@
+Capital Priority, Sector Context & Portfolio Awareness
+
+(UI-Only, Non-Destructive)
+
+CONTEXT (LOCK THIS IN)
+
+You are working inside Deep Dive Stock OS.
+
+Absolute Rules (NON-NEGOTIABLE)
+
+❌ DO NOT modify Strategic or Tactical engines
+
+❌ DO NOT modify Sector Regime, Portfolio Constraint, or Ranking engines
+
+❌ DO NOT change scores, thresholds, or logic
+
+❌ DO NOT remove existing UI elements
+
+This prompt only reads existing outputs and displays them.
+
+OBJECTIVE (ONE PURPOSE ONLY)
+
+Expose Phase 2 intelligence in the UI so the user can see:
+
+Capital Priority (BUY / ACCUMULATE / PILOT / WATCH / BLOCKED)
+
+Sector Regime context
+
+Portfolio constraints
+
+“Why this stock, not others?”
+
+This must feel calm, professional, and non-promotional.
+
+FILES TO MODIFY / CREATE (ONLY THESE)
+1️⃣ Capital Priority badge
+client/src/components/stock/CapitalPriorityBadge.tsx
+
+2️⃣ Extend stock card UI
+client/src/components/stock/StockCard.tsx
+
+3️⃣ Phase 2 explainer panel
+client/src/components/stock/Phase2Explainer.tsx
+
+
+❌ Do not change data-fetching or engines.
+
+1️⃣ CAPITAL PRIORITY BADGE (NEW)
+📍 CapitalPriorityBadge.tsx
+
+Create a small, neutral badge component:
+
+interface Props {
+  priority: "BUY" | "ACCUMULATE" | "PILOT" | "WATCH" | "BLOCKED";
+}
+
+const colors = {
+  BUY: "bg-green-100 text-green-800",
+  ACCUMULATE: "bg-emerald-100 text-emerald-800",
+  PILOT: "bg-blue-100 text-blue-800",
+  WATCH: "bg-yellow-100 text-yellow-800",
+  BLOCKED: "bg-gray-200 text-gray-600",
+};
+
+export function CapitalPriorityBadge({ priority }: Props) {
+  return (
+    <span
+      className={`px-2 py-1 rounded text-xs font-semibold ${colors[priority]}`}
+    >
+      {priority}
+    </span>
+  );
+}
+
+2️⃣ STOCK CARD INTEGRATION (SAFE EXTENSION)
+📍 StockCard.tsx
+
+Without removing anything:
+
+Add Capital Priority near the top of each card:
+<CapitalPriorityBadge priority={stock.capitalPriority} />
+
+Add Sector Regime label (small, muted):
+<p className="text-xs text-gray-500">
+  Sector Regime: {stock.sectorRegime}
+</p>
+
+Add Portfolio Action (if REDUCE / BLOCK):
+{stock.portfolioAction !== "ALLOW" && (
+  <p className="text-xs text-red-600">
+    Portfolio constraint: {stock.portfolioAction}
+  </p>
+)}
+
+
+⚠️ This must be informational, not alarming.
+
+3️⃣ PHASE 2 EXPLAINER PANEL (CRITICAL FOR TRUST)
+📍 Phase2Explainer.tsx
+
+Create a collapsible panel titled:
+
+“Why this Capital Priority?”
+
+Display:
+
+Sector Regime + explanation
+
+Rank in sector (e.g., “#1 in Semiconductors”)
+
+Portfolio constraint reason (if any)
+
+Ranking engine reasons (from rankedStock.reasons)
+
+Example UI copy:
+
+Capital Priority: PILOT
+
+Why?
+• Best-ranked stock in its sector
+• Sector regime is NEUTRAL (selective exposure)
+• Portfolio capacity available
+• Strategic setup forming, but market regime cautious
+
+4️⃣ DASHBOARD SUMMARY (SMALL, SAFE ADDITION)
+
+Without removing existing metrics, add:
+
+Count of BUY
+
+Count of ACCUMULATE
+
+Count of PILOT
+
+Count of BLOCKED
+
+Example:
+
+Capital Actions
+• BUY: 1
+• ACCUMULATE: 2
+• PILOT: 3
+• BLOCKED: 4
+
+
+This should not replace Strategic/Tactical summaries.
+
+5️⃣ UX & DESIGN RULES (IMPORTANT)
+
+Phase 2 elements must feel secondary, not loud
+
+No flashing, no calls-to-action
+
+BUY ≠ “go all in”
+
+WATCH remains dominant most of the time
+
+This preserves discipline.
+
+6️⃣ VALIDATION CHECKLIST (YOU MUST VERIFY)
+
+After running this prompt:
+
+✅ App builds and runs
+✅ Strategic & Tactical scores unchanged
+✅ Capital Priority visible on cards
+✅ Phase 2 explanations readable
+✅ No regression to RED/AVOID chaos
+
+If anything breaks, stop immediately.
+
+END OF PROMPT
