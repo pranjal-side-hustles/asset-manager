@@ -24,25 +24,34 @@ shared/
 ├── types/           # TypeScript interfaces for stocks, horizons, evaluations
 │   ├── stock.ts
 │   ├── horizon.ts
-│   └── evaluation.ts
+│   ├── evaluation.ts
+│   └── marketContext.ts  # Market regime, indices, breadth, sectors types
 ├── constants/       # Configurable thresholds for scoring
 │   └── thresholds.ts
 
 server/
 ├── domain/          # Business logic (no UI dependencies)
-│   └── horizons/
-│       ├── strategicGrowth/
-│       │   ├── evaluator.ts
-│       │   ├── scoring.ts
-│       │   └── rules.ts
-│       └── tacticalSentinel/
-│           ├── evaluator.ts
-│           ├── scoring.ts
-│           └── rules.ts
+│   ├── horizons/
+│   │   ├── strategicGrowth/
+│   │   │   ├── evaluator.ts
+│   │   │   ├── scoring.ts
+│   │   │   └── rules.ts
+│   │   └── tacticalSentinel/
+│   │       ├── evaluator.ts
+│   │       ├── scoring.ts
+│   │       └── rules.ts
+│   └── marketContext/    # Market regime detection
+│       ├── regimeEvaluator.ts
+│       └── marketContextEngine.ts
 ├── services/        # Data access layer
-│   └── stocks/
-│       ├── mockData.ts
-│       └── fetchStock.ts
+│   ├── stocks/
+│   │   ├── mockData.ts
+│   │   └── fetchStock.ts
+│   └── market/      # Market-level data services
+│       ├── fetchIndices.ts
+│       ├── fetchBreadth.ts
+│       ├── fetchSectors.ts
+│       └── fetchVolatility.ts
 ├── routes.ts        # API endpoints
 
 client/src/
@@ -54,6 +63,8 @@ client/src/
 │   │   ├── HorizonPanel.tsx
 │   │   ├── StockHeader.tsx
 │   │   └── StockCard.tsx
+│   ├── market/      # Market context components
+│   │   └── MarketContextPanel.tsx
 │   └── layout/      # Layout components
 │       ├── Header.tsx
 │       └── MainLayout.tsx
@@ -71,6 +82,7 @@ client/src/
 
 - `GET /api/dashboard` - Returns all stocks with evaluation scores
 - `GET /api/stocks/:symbol` - Returns detailed evaluation for a stock
+- `GET /api/market-context` - Returns global market context (regime, indices, breadth, volatility)
 
 ## Color Semantics
 
@@ -202,6 +214,75 @@ When providers fail, the app falls back to mock data with:
 - Data confidence displayed as "LOW"
 - Warning message: "Using fallback mock data - live data providers unavailable"
 - All evaluation engines continue to work with mock data
+
+## Market Context Layer (Phase 1)
+
+The Market Context Layer provides global market intelligence that influences all strategy engine evaluations:
+
+### Architecture
+
+```
+shared/types/
+└── marketContext.ts        # Type definitions
+
+server/services/market/
+├── fetchIndices.ts         # SPY, QQQ, DIA, IWM trends
+├── fetchBreadth.ts         # Market breadth metrics
+├── fetchSectors.ts         # Sector leadership
+└── fetchVolatility.ts      # VIX data
+
+server/domain/marketContext/
+├── regimeEvaluator.ts      # RISK_ON/RISK_OFF/NEUTRAL detection
+└── marketContextEngine.ts  # Aggregates all market data
+
+client/src/components/market/
+└── MarketContextPanel.tsx  # Dashboard UI component
+```
+
+### Market Regime Detection
+
+The regime evaluator scores the overall market environment:
+
+| Component | RISK_ON Points | RISK_OFF Points |
+|-----------|----------------|-----------------|
+| Index trends (3/4 up) | +25 | -25 (if 3/4 down) |
+| Indices above 200DMA | +20 | -20 |
+| S&P momentum | +10 | -10 |
+| Breadth health | +25 (strong) | -25 (weak) |
+| A/D ratio | +10 (>1.5) | -10 (<0.7) |
+| VIX elevated | -15 | +10 (low VIX) |
+
+**Regime Thresholds:**
+- Net score ≥30 → RISK_ON
+- Net score ≤-30 → RISK_OFF
+- Otherwise → NEUTRAL
+
+### Strategy Engine Adjustments
+
+Market regime directly influences stock evaluations:
+
+| Engine | RISK_ON | NEUTRAL | RISK_OFF |
+|--------|---------|---------|----------|
+| Strategic Growth | +5 | -2 | -10 |
+| Tactical Sentinel | +8 | -3 | -12 |
+
+### API Endpoint
+
+- `GET /api/market-context` - Returns full market context snapshot
+  - Query param: `?refresh=true` to force cache refresh
+  - Response includes: regime, indices, breadth, sectors, volatility, meta
+
+### Caching
+
+- Market context: 5-minute TTL
+- Cached globally across all stock evaluations
+- Force refresh available via API
+
+### Data Sources for Market Context
+
+- **Finnhub**: Index ETF quotes (SPY, QQQ, DIA, IWM), VIX, sector ETFs
+- **FMP**: 200-day moving averages, S&P 500 constituents for breadth
+- **Fallback**: Estimated breadth from index performance when providers fail
 
 ## Infrastructure (Phase 0 - Hardened Core)
 

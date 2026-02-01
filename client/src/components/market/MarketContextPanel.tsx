@@ -13,63 +13,14 @@ import {
   RefreshCw
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-
-interface IndexState {
-  symbol: string;
-  name: string;
-  price: number;
-  change: number;
-  changePercent: number;
-  trend: "UP" | "DOWN" | "SIDEWAYS";
-  above200DMA: boolean;
-  momentum: "POSITIVE" | "NEGATIVE" | "NEUTRAL";
-}
-
-interface BreadthData {
-  pctAbove200DMA: number;
-  advanceDeclineRatio: number;
-  newHighsLowsRatio: number;
-  health: "STRONG" | "NEUTRAL" | "WEAK";
-}
-
-interface SectorState {
-  name: string;
-  symbol: string;
-  trend: "LEADING" | "NEUTRAL" | "LAGGING";
-  relativeStrength: number;
-  changePercent: number;
-}
-
-interface VolatilityData {
-  vixLevel: number;
-  vixTrend: "UP" | "DOWN" | "SIDEWAYS";
-  isElevated: boolean;
-}
-
-interface MarketContext {
-  regime: "RISK_ON" | "RISK_OFF" | "NEUTRAL";
-  regimeReasons: string[];
-  confidence: "HIGH" | "MEDIUM" | "LOW";
-  indices: {
-    spy: IndexState;
-    qqq: IndexState;
-    dia: IndexState;
-    iwm: IndexState;
-  };
-  breadth: BreadthData;
-  sectors: SectorState[];
-  volatility: VolatilityData;
-}
-
-interface MarketContextSnapshot {
-  context: MarketContext;
-  meta: {
-    providersUsed: string[];
-    providersFailed: string[];
-    warnings: string[];
-    cacheHit: boolean;
-  };
-}
+import type {
+  IndexState,
+  BreadthData,
+  SectorState,
+  MarketContext,
+  MarketContextSnapshot,
+  TrendDirection,
+} from "@shared/types/marketContext";
 
 function RegimeBadge({ regime, confidence }: { regime: MarketContext["regime"]; confidence: string }) {
   const regimeConfig = {
@@ -104,7 +55,7 @@ function RegimeBadge({ regime, confidence }: { regime: MarketContext["regime"]; 
   );
 }
 
-function TrendIcon({ trend }: { trend: "UP" | "DOWN" | "SIDEWAYS" }) {
+function TrendIcon({ trend }: { trend: TrendDirection }) {
   if (trend === "UP") return <TrendingUp className="w-4 h-4 text-stock-eligible" />;
   if (trend === "DOWN") return <TrendingDown className="w-4 h-4 text-stock-reject" />;
   return <Minus className="w-4 h-4 text-muted-foreground" />;
@@ -185,7 +136,7 @@ function BreadthSection({ breadth }: { breadth: BreadthData }) {
   );
 }
 
-function VolatilitySection({ volatility }: { volatility: VolatilityData }) {
+function VolatilitySection({ volatility }: { volatility: MarketContext["volatility"] }) {
   return (
     <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50" data-testid="section-volatility">
       <Gauge className={`w-5 h-5 ${volatility.isElevated ? "text-stock-reject" : "text-stock-eligible"}`} />
