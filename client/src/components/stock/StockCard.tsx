@@ -1,6 +1,6 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { TrendingUp, TrendingDown, ArrowRight, AlertTriangle, Target, Clock, BarChart3 } from "lucide-react";
+import { TrendingUp, TrendingDown, ArrowRight, AlertTriangle, Target, Clock, BarChart3, AlertCircle } from "lucide-react";
 import { Link } from "wouter";
 import { ScoreCircle } from "./ScoreCircle";
 import { StatusBadge } from "./StatusBadge";
@@ -43,12 +43,27 @@ function getHorizonLabelStyle(label?: string) {
   return { color: "text-stock-reject/70", icon: AlertTriangle };
 }
 
+function formatEODDate(dateStr?: string): string {
+  if (!dateStr) return "";
+  try {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString("en-US", { 
+      month: "short", 
+      day: "numeric",
+      year: "numeric"
+    });
+  } catch {
+    return dateStr;
+  }
+}
+
 interface StockCardProps {
   stock: DashboardStock;
 }
 
 export function StockCard({ stock }: StockCardProps) {
   const isPositive = stock.change >= 0;
+  const priceAvailable = stock.priceAvailable;
 
   return (
     <Link href={`/stocks/${stock.symbol}`}>
@@ -103,28 +118,45 @@ export function StockCard({ stock }: StockCardProps) {
               </p>
             </div>
             <div className="text-right">
-              <p className="text-lg font-semibold">
-                ${stock.price.toLocaleString("en-US", {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}
-              </p>
-              <div
-                className={cn(
-                  "flex items-center justify-end gap-1 text-xs font-medium",
-                  isPositive ? "text-stock-positive" : "text-stock-negative"
-                )}
-              >
-                {isPositive ? (
-                  <TrendingUp className="w-3 h-3" />
-                ) : (
-                  <TrendingDown className="w-3 h-3" />
-                )}
-                <span>
-                  {isPositive ? "+" : ""}
-                  {stock.changePercent.toFixed(2)}%
-                </span>
-              </div>
+              {priceAvailable ? (
+                <>
+                  <p className="text-lg font-semibold" data-testid={`text-price-${stock.symbol.toLowerCase()}`}>
+                    ${stock.price.toLocaleString("en-US", {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}
+                  </p>
+                  <div
+                    className={cn(
+                      "flex items-center justify-end gap-1 text-xs font-medium",
+                      isPositive ? "text-stock-positive" : "text-stock-negative"
+                    )}
+                  >
+                    {isPositive ? (
+                      <TrendingUp className="w-3 h-3" />
+                    ) : (
+                      <TrendingDown className="w-3 h-3" />
+                    )}
+                    <span>
+                      {isPositive ? "+" : ""}
+                      {stock.changePercent.toFixed(2)}%
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground mt-0.5" data-testid={`text-eod-date-${stock.symbol.toLowerCase()}`}>
+                    Last Close {stock.eodDate ? `(${formatEODDate(stock.eodDate)})` : "(EOD)"}
+                  </p>
+                </>
+              ) : (
+                <div className="flex flex-col items-end gap-1">
+                  <div className="flex items-center gap-1 text-muted-foreground" data-testid={`text-price-unavailable-${stock.symbol.toLowerCase()}`}>
+                    <AlertCircle className="w-4 h-4" />
+                    <span className="text-sm">Price unavailable</span>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">
+                    Data source unavailable
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 

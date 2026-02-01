@@ -1,2 +1,9 @@
-export { fetchMarketstackHistorical, type MarketstackHistoricalData } from "./fetchHistoricalPrices";
-export { fetchMarketstackQuote, type MarketstackPriceQuote } from "./fetchQuote";
+export { 
+  fetchMarketstackEOD, 
+  isMarketstackAvailable, 
+  clearCache,
+  getCacheStats,
+  type EODData, 
+  type OHLCData, 
+  type MarketstackEODResult 
+} from "./marketstackEODProvider";

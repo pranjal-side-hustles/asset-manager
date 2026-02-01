@@ -90,6 +90,8 @@ export interface HistoricalPrice {
 
 export interface StockSnapshotMeta {
   dataFreshness: Date;
+  eodDate?: string;
+  priceAvailable: boolean;
   providersUsed: string[];
   providersFailed: string[];
   confidence: DataConfidence;

@@ -1,9 +1,6 @@
 import { SectorState, SectorTrend } from "../../../shared/types/marketContext";
-import { fetchWithRetry } from "../../infra/network/fetchWithRetry";
-import { providerGuard } from "../../infra/network/providerGuard";
 import { logger } from "../../infra/logging/logger";
-
-const FINNHUB_API_KEY = process.env.FINNHUB_API_KEY;
+import { fetchMarketstackEOD, isMarketstackAvailable } from "../providers/marketstack";
 
 interface SectorConfig {
   name: string;
@@ -30,23 +27,20 @@ interface SectorQuote {
 }
 
 async function fetchSectorQuote(symbol: string): Promise<SectorQuote | null> {
-  if (!FINNHUB_API_KEY || !providerGuard.isAvailable("Finnhub")) {
+  if (!isMarketstackAvailable()) {
     return null;
   }
 
   try {
-    const url = `https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${FINNHUB_API_KEY}`;
-    const response = await fetchWithRetry(url, {}, { timeoutMs: 6000 });
+    const result = await fetchMarketstackEOD(symbol);
     
-    if (!response.ok) return null;
-    
-    const data = await response.json();
-    
-    if (!data.c || data.c === 0) return null;
+    if (!result.success || !result.data) {
+      return null;
+    }
 
     return {
-      price: data.c,
-      changePercent: data.dp || 0,
+      price: result.data.eod.close,
+      changePercent: result.data.eod.changePercent,
     };
   } catch {
     return null;
@@ -77,11 +71,11 @@ export async function fetchSectorPerformance(spyChangePercent: number = 0): Prom
       const quote = await fetchSectorQuote(sector.symbol);
       
       if (!quote) {
-        providersFailed.push(`Finnhub-${sector.symbol}`);
+        providersFailed.push(`Marketstack-${sector.symbol}`);
         return null;
       }
 
-      providersUsed.push(`Finnhub-${sector.symbol}`);
+      providersUsed.push(`Marketstack-${sector.symbol}`);
       
       const relativeStrength = calculateRelativeStrength(quote.changePercent, spyChangePercent);
       const trend = determineSectorTrend(relativeStrength, quote.changePercent);
@@ -99,12 +93,10 @@ export async function fetchSectorPerformance(spyChangePercent: number = 0): Prom
   const validSectors = results.filter((r): r is SectorState => r !== null);
 
   if (validSectors.length > 0) {
-    providerGuard.recordSuccess("Finnhub");
-    
     validSectors.sort((a, b) => b.relativeStrength - a.relativeStrength);
   }
 
-  logger.dataFetch(`Fetched ${validSectors.length}/${SECTOR_ETFS.length} sectors`, {
+  logger.dataFetch(`Fetched ${validSectors.length}/${SECTOR_ETFS.length} sectors (EOD)`, {
     leading: validSectors.filter((s) => s.trend === "LEADING").length,
     lagging: validSectors.filter((s) => s.trend === "LAGGING").length,
   });

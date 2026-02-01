@@ -29,6 +29,8 @@ export interface DashboardStock {
   price: number;
   change: number;
   changePercent: number;
+  eodDate?: string;
+  priceAvailable: boolean;
   strategicScore: number;
   strategicStatus: StrategicGrowthStatus;
   tacticalScore: number;

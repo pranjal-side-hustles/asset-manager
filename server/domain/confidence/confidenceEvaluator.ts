@@ -21,15 +21,16 @@ export interface ConfidenceInputs {
 }
 
 const PROVIDER_WEIGHTS: Record<string, number> = {
-  "Finnhub-Quote": 20,
-  "FMP-Price": 15,
-  "Marketstack-Quote": 10,
-  "FMP-Financials": 15,
-  "FMP-Technicals": 15,
+  "Marketstack-EOD": 50,
+  "Local-Technicals": 15,
+  "Mock-Quote": 5,
+  "Mock-OHLC": 5,
   "Finnhub-Sentiment": 10,
   "Finnhub-Institutional": 5,
   "Finnhub-Options": 5,
-  "Marketstack-Historical": 5,
+  "Mock-Fundamentals": 10,
+  "Mock-Sentiment": 3,
+  "Mock-Options": 2,
 };
 
 const STALE_THRESHOLD_MS = 5 * 60 * 1000;

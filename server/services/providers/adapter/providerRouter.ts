@@ -1,5 +1,4 @@
 import type {
-  MarketDataResult,
   PriceQuote,
   OHLCCandle,
   TechnicalIndicators,
@@ -7,9 +6,36 @@ import type {
   SentimentData,
   OptionsData,
 } from "./types";
-import { twelveDataProvider } from "./twelveDataProvider";
 import { mockProvider } from "./mockProvider";
+import { 
+  fetchMarketstackEOD, 
+  isMarketstackAvailable,
+  clearCache as clearMarketstackCache,
+  getCacheStats,
+  type EODData,
+  type OHLCData,
+} from "../marketstack";
 import { logger } from "../../../infra/logging/logger";
+
+export interface EODPrice {
+  symbol: string;
+  price: number;
+  change: number;
+  changePercent: number;
+  date: string;
+  open: number;
+  high: number;
+  low: number;
+  volume: number;
+  source: "Marketstack";
+}
+
+export interface EODPriceResult {
+  success: boolean;
+  data: EODPrice | null;
+  error?: string;
+  cached: boolean;
+}
 
 export interface AggregatedMarketData {
   quote: PriceQuote;
@@ -18,62 +44,156 @@ export interface AggregatedMarketData {
   fundamentals: FundamentalsData;
   sentiment: SentimentData;
   options: OptionsData;
+  priceStatus: {
+    source: string;
+    isEOD: boolean;
+    eodDate: string;
+    timestamp: number;
+  };
   meta: {
     providersUsed: string[];
     providersFailed: string[];
     timestamp: number;
+    cached: boolean;
   };
 }
 
-function computeTechnicalsFromOHLC(ohlc: OHLCCandle[], currentPrice: number): TechnicalIndicators {
+export function clearAllCaches(): void {
+  clearMarketstackCache();
+  logger.info("DATA_FETCH", "All caches cleared");
+}
+
+export function getProviderCacheStats() {
+  return {
+    marketstack: getCacheStats(),
+  };
+}
+
+export async function getEODPrice(symbol: string): Promise<EODPriceResult> {
+  const upperSymbol = symbol.toUpperCase();
+  const log = logger.withContext({ symbol: upperSymbol });
+
+  if (!isMarketstackAvailable()) {
+    log.providerFailure("Marketstack not available - MARKETSTACK_API_KEY not set");
+    return {
+      success: false,
+      data: null,
+      error: "Price provider unavailable",
+      cached: false,
+    };
+  }
+
+  const result = await fetchMarketstackEOD(upperSymbol);
+
+  if (!result.success || !result.data) {
+    log.providerFailure(`Price unavailable for ${upperSymbol}: ${result.error}`);
+    return {
+      success: false,
+      data: null,
+      error: result.error || "Failed to fetch EOD price",
+      cached: false,
+    };
+  }
+
+  const { eod } = result.data;
+
+  log.dataFetch(`EOD price for ${upperSymbol}: $${eod.close} (${eod.date})`, {
+    cached: result.cached,
+  });
+
+  return {
+    success: true,
+    data: {
+      symbol: eod.symbol,
+      price: eod.close,
+      change: eod.change,
+      changePercent: eod.changePercent,
+      date: eod.date,
+      open: eod.open,
+      high: eod.high,
+      low: eod.low,
+      volume: eod.volume,
+      source: "Marketstack",
+    },
+    cached: result.cached,
+  };
+}
+
+function computeTechnicalsFromOHLC(ohlc: OHLCData[], currentPrice: number): TechnicalIndicators {
   const closes = ohlc.map(c => c.close);
   
   const calcSMA = (period: number): number => {
-    if (closes.length < period) return currentPrice * (0.95 + (period - 20) * -0.001);
-    return closes.slice(-period).reduce((a, b) => a + b, 0) / period;
+    if (closes.length < period) {
+      return closes.length > 0 ? closes.reduce((a, b) => a + b, 0) / closes.length : currentPrice;
+    }
+    return closes.slice(0, period).reduce((a, b) => a + b, 0) / period;
   };
 
   const sma20 = calcSMA(20);
   const sma50 = calcSMA(50);
   const sma200 = calcSMA(200);
 
-  const recentCandles = ohlc.slice(-15);
-  const trueRanges: number[] = [];
-  for (let i = 1; i < recentCandles.length; i++) {
-    const h = recentCandles[i].high;
-    const l = recentCandles[i].low;
-    const pc = recentCandles[i - 1].close;
-    trueRanges.push(Math.max(h - l, Math.abs(h - pc), Math.abs(l - pc)));
-  }
-  const atr = trueRanges.length > 0
-    ? trueRanges.reduce((a, b) => a + b, 0) / trueRanges.length
-    : currentPrice * 0.02;
+  const calcATR = (period: number): number => {
+    if (ohlc.length < period + 1) return currentPrice * 0.02;
+    
+    const trueRanges: number[] = [];
+    for (let i = 0; i < Math.min(period, ohlc.length - 1); i++) {
+      const current = ohlc[i];
+      const previous = ohlc[i + 1];
+      const tr = Math.max(
+        current.high - current.low,
+        Math.abs(current.high - previous.close),
+        Math.abs(current.low - previous.close)
+      );
+      trueRanges.push(tr);
+    }
+    
+    return trueRanges.length > 0 
+      ? trueRanges.reduce((a, b) => a + b, 0) / trueRanges.length 
+      : currentPrice * 0.02;
+  };
 
-  const gains: number[] = [];
-  const losses: number[] = [];
-  for (let i = 1; i < Math.min(15, closes.length); i++) {
-    const diff = closes[closes.length - i] - closes[closes.length - i - 1];
-    if (diff > 0) gains.push(diff);
-    else losses.push(Math.abs(diff));
-  }
-  const avgGain = gains.length > 0 ? gains.reduce((a, b) => a + b, 0) / 14 : 0;
-  const avgLoss = losses.length > 0 ? losses.reduce((a, b) => a + b, 0) / 14 : 0.001;
-  const rs = avgGain / avgLoss;
-  const rsi = 100 - (100 / (1 + rs));
+  const calcRSI = (period: number): number => {
+    if (closes.length < period + 1) return 50;
+    
+    const gains: number[] = [];
+    const losses: number[] = [];
+    
+    for (let i = 0; i < period && i < closes.length - 1; i++) {
+      const diff = closes[i] - closes[i + 1];
+      if (diff > 0) {
+        gains.push(diff);
+        losses.push(0);
+      } else {
+        gains.push(0);
+        losses.push(Math.abs(diff));
+      }
+    }
+    
+    const avgGain = gains.reduce((a, b) => a + b, 0) / period;
+    const avgLoss = losses.reduce((a, b) => a + b, 0) / period;
+    
+    if (avgLoss === 0) return 100;
+    
+    const rs = avgGain / avgLoss;
+    return 100 - (100 / (1 + rs));
+  };
+
+  const atr = calcATR(14);
+  const rsi = calcRSI(14);
 
   const calcEMA = (period: number, sma: number): number => {
     if (closes.length < period) return sma;
     const k = 2 / (period + 1);
     let ema = sma;
-    const startIdx = Math.max(0, closes.length - period);
-    for (let i = startIdx; i < closes.length; i++) {
+    for (let i = Math.min(period, closes.length) - 1; i >= 0; i--) {
       ema = closes[i] * k + ema * (1 - k);
     }
     return ema;
   };
 
   return {
-    rsi: parseFloat(Math.min(85, Math.max(15, rsi)).toFixed(2)),
+    rsi: parseFloat(Math.min(100, Math.max(0, rsi)).toFixed(2)),
     sma20: parseFloat(sma20.toFixed(2)),
     sma50: parseFloat(sma50.toFixed(2)),
     sma200: parseFloat(sma200.toFixed(2)),
@@ -90,56 +210,84 @@ export async function getMarketData(symbol: string): Promise<AggregatedMarketDat
   const providersFailed: string[] = [];
   const log = logger.withContext({ symbol: upperSymbol });
 
-  const useTwelveData = twelveDataProvider.isAvailable();
-
   let quote: PriceQuote;
-  let ohlc: OHLCCandle[];
+  let ohlcCandles: OHLCCandle[];
   let technicals: TechnicalIndicators;
-  let priceProvider = "Mock";
-  let ohlcProvider = "Mock";
+  let priceSource = "Unavailable";
+  let eodDate = "";
+  let dataCached = false;
 
-  if (useTwelveData) {
-    const quoteResult = await twelveDataProvider.getQuote(upperSymbol);
-    if (quoteResult.success && quoteResult.data) {
-      quote = quoteResult.data;
-      priceProvider = "TwelveData";
-      log.dataFetch("Quote from TwelveData", { price: quote.price });
-    } else {
-      const mockQuote = await mockProvider.getQuote(upperSymbol);
-      quote = mockQuote.data!;
-      priceProvider = "Mock";
-      providersFailed.push("TwelveData-Quote");
-      log.fallback("Quote failed from TwelveData, using Mock");
-    }
+  const eodResult = await fetchMarketstackEOD(upperSymbol);
 
-    const ohlcResult = await twelveDataProvider.getOHLC(upperSymbol, "1day", 200);
-    if (ohlcResult.success && ohlcResult.data && ohlcResult.data.length > 0) {
-      ohlc = ohlcResult.data;
-      ohlcProvider = "TwelveData";
-      technicals = computeTechnicalsFromOHLC(ohlc, quote.price);
-      log.dataFetch("OHLC+Technicals from TwelveData time_series", { candles: ohlc.length });
-    } else {
-      const mockOhlc = await mockProvider.getOHLC(upperSymbol, "1day", 100);
-      ohlc = mockOhlc.data || [];
-      ohlcProvider = "Mock";
-      technicals = computeTechnicalsFromOHLC(ohlc, quote.price);
-      providersFailed.push("TwelveData-OHLC");
-      log.fallback("OHLC failed from TwelveData, using Mock bundle");
-    }
+  if (eodResult.success && eodResult.data) {
+    const { eod, ohlc } = eodResult.data;
+    
+    quote = {
+      symbol: eod.symbol,
+      price: eod.close,
+      change: eod.change,
+      changePercent: eod.changePercent,
+      open: eod.open,
+      high: eod.high,
+      low: eod.low,
+      previousClose: ohlc[1]?.close || eod.close,
+      volume: eod.volume,
+      timestamp: new Date(eod.date).getTime(),
+    };
+
+    ohlcCandles = ohlc.map(d => ({
+      timestamp: new Date(d.date).getTime(),
+      open: d.open,
+      high: d.high,
+      low: d.low,
+      close: d.close,
+      volume: d.volume,
+    }));
+
+    technicals = computeTechnicalsFromOHLC(ohlc, eod.close);
+    
+    priceSource = "Marketstack";
+    eodDate = eod.date;
+    dataCached = eodResult.cached;
+    providersUsed.push("Marketstack-EOD");
+    
+    log.dataFetch(`Market data for ${upperSymbol}: EOD $${eod.close} (${eod.date})`, {
+      cached: dataCached,
+      ohlcDays: ohlc.length,
+    });
   } else {
-    const mockQuote = await mockProvider.getQuote(upperSymbol);
-    quote = mockQuote.data!;
+    log.providerFailure(`Price unavailable for ${upperSymbol}: ${eodResult.error}`);
+    providersFailed.push("Marketstack-EOD");
     
-    const mockOhlc = await mockProvider.getOHLC(upperSymbol, "1day", 100);
-    ohlc = mockOhlc.data || [];
+    quote = {
+      symbol: upperSymbol,
+      price: 0,
+      change: 0,
+      changePercent: 0,
+      open: 0,
+      high: 0,
+      low: 0,
+      previousClose: 0,
+      volume: 0,
+      timestamp: 0,
+    };
     
-    technicals = computeTechnicalsFromOHLC(ohlc, quote.price);
-    log.dataFetch("All data from Mock provider", { price: quote.price });
+    ohlcCandles = [];
+    technicals = {
+      rsi: 0,
+      sma20: 0,
+      sma50: 0,
+      sma200: 0,
+      ema20: 0,
+      ema50: 0,
+      atr: 0,
+      atrPercent: 0,
+    };
+    
+    priceSource = "Unavailable";
   }
 
-  providersUsed.push(`${priceProvider}-Quote`);
-  providersUsed.push(`${ohlcProvider}-OHLC`);
-  providersUsed.push(`${ohlcProvider}-Technicals`);
+  providersUsed.push("Local-Technicals");
 
   const [fundamentalsResult, sentimentResult, optionsResult] = await Promise.all([
     mockProvider.getFundamentals(upperSymbol),
@@ -155,23 +303,30 @@ export async function getMarketData(symbol: string): Promise<AggregatedMarketDat
 
   return {
     quote,
-    ohlc,
+    ohlc: ohlcCandles,
     technicals,
     fundamentals,
     sentiment,
     options,
+    priceStatus: {
+      source: priceSource,
+      isEOD: true,
+      eodDate,
+      timestamp: Date.now(),
+    },
     meta: {
       providersUsed,
       providersFailed,
       timestamp: Date.now(),
+      cached: dataCached,
     },
   };
 }
 
 export function isProviderAvailable(name: string): boolean {
   switch (name.toLowerCase()) {
-    case "twelvedata":
-      return twelveDataProvider.isAvailable();
+    case "marketstack":
+      return isMarketstackAvailable();
     case "mock":
       return mockProvider.isAvailable();
     default:
@@ -179,4 +334,4 @@ export function isProviderAvailable(name: string): boolean {
   }
 }
 
-export { twelveDataProvider, mockProvider };
+export { mockProvider };

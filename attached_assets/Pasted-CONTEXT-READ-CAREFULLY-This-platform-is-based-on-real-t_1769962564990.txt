@@ -1,0 +1,180 @@
+CONTEXT (READ CAREFULLY)
+
+This platform is based on real-time and accurate stock market data.
+Incorrect or stale prices are not acceptable, even temporarily.
+
+We are reducing providers and enforcing strict data roles.
+
+🧹 STEP 0 — REMOVE FMP COMPLETELY
+
+Delete all FMP usage from the codebase
+
+Remove:
+
+API keys
+
+Imports
+
+Provider logic
+
+Any fallback references
+
+No fundamentals provider is required right now
+
+⚠️ Accuracy > completeness.
+
+🟢 STEP 1 — CANONICAL PRICE SOURCE (MANDATORY)
+Use Twelve Data as the ONLY source for current prices.
+
+Endpoint: /quote
+
+This is the single source of truth for:
+
+Stock price
+
+% change
+
+Timestamp
+
+Rules (NON-NEGOTIABLE)
+
+Do NOT derive current price from:
+
+OHLC candles
+
+Historical closes
+
+Every price must include:
+
+price
+
+timestamp
+
+source = "TwelveData"
+
+If price timestamp is older than 60 seconds:
+
+Mark price as STALE
+
+Show “Price temporarily unavailable”
+
+Do NOT substitute from another provider
+
+UI must use only this price
+
+Create or enforce:
+
+getCurrentPrice(symbol)
+
+🟢 STEP 2 — TECHNICAL DATA (SAME PROVIDER)
+
+Use Twelve Data for:
+
+OHLC (daily / intraday)
+
+RSI
+
+Moving averages
+
+ATR
+
+MACD
+
+Index prices (SPY, QQQ, etc.)
+
+Rules:
+
+Indicators must come from the same provider as price
+
+Do NOT mix providers for price vs indicators
+
+🟡 STEP 3 — FINNHUB (STRICTLY LIMITED)
+
+Keep Finnhub only for:
+
+Sentiment
+
+Institutional ownership
+
+Options data
+
+Rules:
+
+Finnhub must NEVER be used for:
+
+Stock price
+
+OHLC
+
+Indicators
+
+Finnhub failures must NOT affect price or scoring
+
+🟡 STEP 4 — MARKETSTACK (OPTIONAL, PAID FALLBACK)
+
+Marketstack may be used only if needed, under strict rules.
+
+Allowed usage:
+
+Historical OHLC ONLY
+
+Indicators ONLY IF Twelve Data fails
+
+Rules:
+
+Marketstack must NEVER be used for:
+
+Current price
+
+“Live” values
+
+Marketstack must be clearly marked as:
+
+source = "Marketstack"
+
+delayed = true
+
+Marketstack data must NOT override Twelve Data prices
+
+If not required immediately, leave Marketstack disabled.
+
+🔐 STEP 5 — DATA SAFETY & DEBUGGING
+Add dev-only logging (or panel):
+
+For each symbol, log:
+
+Provider
+
+Price
+
+Timestamp
+
+Is stale (true/false)
+
+This is required to verify accuracy.
+
+🚫 STRICT DO-NOTs
+
+❌ Do NOT reintroduce FMP
+
+❌ Do NOT mix adjusted/unadjusted prices
+
+❌ Do NOT silently fallback between providers
+
+❌ Do NOT guess prices
+
+❌ Do NOT compute price from candles
+
+✅ SUCCESS CRITERIA
+
+NVDA / AAPL / MSFT prices match real markets
+
+Prices stop jumping or reverting
+
+Tactical & Strategic scores stabilize naturally
+
+UI always reflects verified, fresh data
+
+If data is unavailable → user is informed clearly
+
+Accuracy is more important than availability.

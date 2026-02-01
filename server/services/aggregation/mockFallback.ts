@@ -361,8 +361,9 @@ export function getMockSnapshot(symbol: string): StockSnapshot | null {
     ...mockData,
     meta: {
       dataFreshness: new Date(),
-      providersUsed: ["Mock Data"],
-      providersFailed: ["FMP", "Finnhub", "Marketstack"],
+      priceAvailable: false,
+      providersUsed: ["Mock-Quote", "Mock-OHLC", "Mock-Fundamentals", "Mock-Sentiment", "Mock-Options"],
+      providersFailed: ["Marketstack-EOD", "Finnhub-Sentiment", "Finnhub-Options"],
       confidence: "LOW",
       warnings: ["Using fallback mock data - live data providers unavailable"],
     },

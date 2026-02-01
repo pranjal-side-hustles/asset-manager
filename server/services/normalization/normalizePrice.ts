@@ -1,53 +1,28 @@
 import type { PartialStockData } from "@shared/types";
-import type { FMPPriceData } from "../providers/fmp";
-import type { MarketstackPriceQuote } from "../providers/marketstack";
-import type { FinnhubPriceQuote } from "../providers/finnhub";
+import type { PriceQuote } from "../providers/adapter/types";
+import type { EODData } from "../providers/marketstack";
 
-export function normalizeFMPPrice(data: FMPPriceData | null): PartialStockData["price"] {
+export function normalizeEODQuote(data: EODData | null, symbol: string): PartialStockData["price"] {
   if (!data) return undefined;
-
-  return {
-    symbol: data.symbol,
-    companyName: data.companyName,
-    price: data.price,
-    change: data.change,
-    changePercent: data.changePercent,
-    volume: data.volume,
-    marketCap: data.marketCap,
-    sector: data.sector,
-    industry: data.industry,
-    high: data.high,
-    low: data.low,
-    open: data.open,
-    previousClose: data.previousClose,
-  };
-}
-
-export function normalizeMarketstackQuote(data: MarketstackPriceQuote | null, symbol: string): PartialStockData["price"] {
-  if (!data) return undefined;
-
-  const previousClose = data.open;
-  const change = data.price - previousClose;
-  const changePercent = previousClose > 0 ? (change / previousClose) * 100 : 0;
 
   return {
     symbol: data.symbol || symbol,
     companyName: symbol,
-    price: data.price,
-    change,
-    changePercent,
-    volume: data.volume,
+    price: data.close,
+    change: data.change,
+    changePercent: data.changePercent,
+    volume: data.volume || 0,
     marketCap: 0,
     sector: "Unknown",
     industry: "Unknown",
     high: data.high,
     low: data.low,
     open: data.open,
-    previousClose,
+    previousClose: data.close - data.change,
   };
 }
 
-export function normalizeFinnhubQuote(data: FinnhubPriceQuote | null, symbol: string): PartialStockData["price"] {
+export function normalizePriceQuote(data: PriceQuote | null, symbol: string): PartialStockData["price"] {
   if (!data) return undefined;
 
   return {
@@ -56,7 +31,7 @@ export function normalizeFinnhubQuote(data: FinnhubPriceQuote | null, symbol: st
     price: data.price,
     change: data.change,
     changePercent: data.changePercent,
-    volume: 0,
+    volume: data.volume || 0,
     marketCap: 0,
     sector: "Unknown",
     industry: "Unknown",
