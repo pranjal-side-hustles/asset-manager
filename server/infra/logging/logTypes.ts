@@ -10,7 +10,8 @@ export type LogType =
   | "SCHEDULER"
   | "RETRY"
   | "TIMEOUT"
-  | "FALLBACK";
+  | "FALLBACK"
+  | "CONFIRMATION";
 
 export interface LogEntry {
   timestamp: string;
