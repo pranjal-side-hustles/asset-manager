@@ -21,6 +21,7 @@ import {
 import { evaluatePortfolioConstraints } from "../../domain/portfolio/portfolioConstraintEngine";
 import { rankStocks } from "../../domain/ranking/relativeRankingEngine";
 import type { PortfolioSnapshot } from "@shared/types/portfolio";
+import { deriveHorizonLabel } from "../../domain/calibration";
 
 const TRACKED_SYMBOLS = [
   "AAPL",
@@ -122,6 +123,13 @@ export async function fetchStockEvaluation(
   const strategicInputs = convertSnapshotToStrategicInputs(snapshot);
   const tacticalInputs = convertSnapshotToTacticalInputs(snapshot);
 
+  // Derive sector and regime for tactical evaluation
+  const sector = stock.sector && stock.sector !== "Unknown" 
+    ? stock.sector 
+    : (SYMBOL_SECTOR_MAP[symbol] ?? "Unknown");
+  const sectorInputs = deriveSectorInputs(sector, marketContext);
+  const sectorResult = evaluateSectorRegime(sector, sectorInputs);
+
   const strategicGrowth = evaluateStrategicGrowth(
     strategicInputs,
     symbol,
@@ -131,7 +139,15 @@ export async function fetchStockEvaluation(
     tacticalInputs,
     symbol,
     marketContext,
+    sectorResult.regime,
   );
+
+  const horizonLabel = deriveHorizonLabel(strategicGrowth.status, tacticalSentinel.status);
+  
+  const allIntegrityFlags = [
+    ...(strategicGrowth.integrityFlags || []),
+    ...(tacticalSentinel.integrityFlags || []),
+  ].filter((flag, index, arr) => arr.indexOf(flag) === index);
 
   return {
     stock,
@@ -140,10 +156,13 @@ export async function fetchStockEvaluation(
       strategicGrowth,
       tacticalSentinel,
       evaluatedAt: Date.now(),
+      horizonLabel,
     },
     dataConfidence: snapshot.meta.confidence,
     confidenceReasons: snapshot.meta.confidenceReasons,
-    warnings: snapshot.meta.warnings,
+    warnings: allIntegrityFlags.length > 0 
+      ? [...snapshot.meta.warnings, ...allIntegrityFlags]
+      : snapshot.meta.warnings,
     providersUsed: snapshot.meta.providersUsed,
     marketRegime: marketContext.regime,
   };
@@ -253,6 +272,10 @@ export async function fetchDashboardStocks(): Promise<DashboardStock[]> {
       const strategicInputs = convertSnapshotToStrategicInputs(snapshot);
       const tacticalInputs = convertSnapshotToTacticalInputs(snapshot);
 
+      // Phase 2: Sector regime evaluation (computed first to pass to tactical evaluator)
+      const sectorInputs = deriveSectorInputs(sector, marketContext);
+      const sectorResult = evaluateSectorRegime(sector, sectorInputs);
+
       const strategicGrowth = evaluateStrategicGrowth(
         strategicInputs,
         symbol,
@@ -262,11 +285,8 @@ export async function fetchDashboardStocks(): Promise<DashboardStock[]> {
         tacticalInputs,
         symbol,
         marketContext,
+        sectorResult.regime,
       );
-
-      // Phase 2: Sector regime evaluation
-      const sectorInputs = deriveSectorInputs(sector, marketContext);
-      const sectorResult = evaluateSectorRegime(sector, sectorInputs);
 
       // Phase 2: Portfolio constraints
       const constraintResult = evaluatePortfolioConstraints(portfolio, {
@@ -304,9 +324,15 @@ export async function fetchDashboardStocks(): Promise<DashboardStock[]> {
 
   const rankedStocks = rankStocks(rankingInputs);
 
-  // Build final dashboard stocks with Phase 2 data
+  // Build final dashboard stocks with Phase 2 data and calibration labels
   const dashboardStocks: DashboardStock[] = evaluatedStocks.map((s) => {
     const ranked = rankedStocks.find((r) => r.symbol === s.snapshot.symbol);
+    const horizonLabel = deriveHorizonLabel(s.strategicGrowth.status, s.tacticalSentinel.status);
+    
+    const allIntegrityFlags = [
+      ...(s.strategicGrowth.integrityFlags || []),
+      ...(s.tacticalSentinel.integrityFlags || []),
+    ].filter((flag, index, arr) => arr.indexOf(flag) === index);
 
     return {
       symbol: s.snapshot.symbol,
@@ -318,6 +344,10 @@ export async function fetchDashboardStocks(): Promise<DashboardStock[]> {
       strategicStatus: s.strategicGrowth.status,
       tacticalScore: s.tacticalSentinel.score,
       tacticalStatus: s.tacticalSentinel.status,
+      horizonLabel,
+      strategicLabels: s.strategicGrowth.labels,
+      tacticalLabels: s.tacticalSentinel.labels,
+      integrityFlags: allIntegrityFlags.length > 0 ? allIntegrityFlags : undefined,
       // Phase 2 fields
       sector: s.sector,
       sectorRegime: s.sectorRegime,

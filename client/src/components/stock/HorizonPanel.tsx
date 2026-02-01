@@ -33,9 +33,9 @@ export function StrategicGrowthPanel({ evaluation, marketRegime }: StrategicGrow
               <Target className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <CardTitle className="text-lg">Strategic Growth Anchor</CardTitle>
+              <CardTitle className="text-lg">Long-Term Strength</CardTitle>
               <p className="text-sm text-muted-foreground mt-0.5">
-                4-9 month investment horizon
+                Is this company built to grow over months?
               </p>
             </div>
           </div>
@@ -63,19 +63,19 @@ export function StrategicGrowthPanel({ evaluation, marketRegime }: StrategicGrow
 
         <div className="space-y-3">
           <EvaluationSection
-            title="Strengths"
+            title="What's Working Well"
             items={evaluation.positives}
             type="positive"
             defaultOpen={true}
           />
           <EvaluationSection
-            title="Risk Factors"
+            title="Things to Watch"
             items={evaluation.risks}
             type="risk"
           />
           {evaluation.failureMode && (
             <EvaluationSection
-              title="Failure Mode"
+              title="What Could Go Wrong"
               items={[evaluation.failureMode]}
               type="failure"
             />
@@ -89,7 +89,7 @@ export function StrategicGrowthPanel({ evaluation, marketRegime }: StrategicGrow
             onClick={() => setShowDetails(!showDetails)}
             data-testid="button-explore-strategic"
           >
-            <span className="font-medium">Explore Detailed Analysis</span>
+            <span className="font-medium">See Full Details</span>
             <ChevronDown
               className={cn(
                 "w-4 h-4 transition-transform duration-200",
@@ -130,9 +130,9 @@ export function TacticalSentinelPanel({ evaluation, marketRegime }: TacticalSent
               <Shield className="w-5 h-5 text-chart-4" />
             </div>
             <div>
-              <CardTitle className="text-lg">Tactical Sentinel</CardTitle>
+              <CardTitle className="text-lg">Right-Now Timing</CardTitle>
               <p className="text-sm text-muted-foreground mt-0.5">
-                0-4 month trading horizon
+                Is this a good moment to act?
               </p>
             </div>
           </div>
@@ -160,19 +160,19 @@ export function TacticalSentinelPanel({ evaluation, marketRegime }: TacticalSent
 
         <div className="space-y-3">
           <EvaluationSection
-            title="Entry Quality Signals"
+            title="Why Timing Looks Good"
             items={evaluation.entryQuality}
             type="positive"
             defaultOpen={true}
           />
           <EvaluationSection
-            title="Risk Factors"
+            title="Things to Watch"
             items={evaluation.risks}
             type="risk"
           />
           {evaluation.failureTrigger && (
             <EvaluationSection
-              title="Failure Trigger"
+              title="Warning Signs"
               items={[evaluation.failureTrigger]}
               type="failure"
             />
@@ -186,7 +186,7 @@ export function TacticalSentinelPanel({ evaluation, marketRegime }: TacticalSent
             onClick={() => setShowDetails(!showDetails)}
             data-testid="button-explore-tactical"
           >
-            <span className="font-medium">Explore Detailed Analysis</span>
+            <span className="font-medium">See Full Details</span>
             <ChevronDown
               className={cn(
                 "w-4 h-4 transition-transform duration-200",

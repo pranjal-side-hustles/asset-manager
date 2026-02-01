@@ -1,12 +1,19 @@
 export type StrategicGrowthStatus = "ELIGIBLE" | "WATCH" | "REJECT";
 export type TacticalSentinelStatus = "TRADE" | "WATCH" | "AVOID";
 
+export interface StrategicLabels {
+  fundamentalConviction: 'High' | 'Medium' | 'Low';
+  technicalAlignment: 'Confirming' | 'Neutral' | 'Weak';
+}
+
 export interface StrategicGrowthEvaluation {
   score: number;
   status: StrategicGrowthStatus;
   positives: string[];
   risks: string[];
   failureMode: string;
+  labels?: StrategicLabels;
+  integrityFlags?: string[];
   details: {
     riskGuardrails: EvaluationDetail;
     marketRegime?: EvaluationDetail; // ✅ OPTIONAL
@@ -18,12 +25,19 @@ export interface StrategicGrowthEvaluation {
   };
 }
 
+export interface TacticalLabels {
+  technicalSetup: 'Strong' | 'Developing' | 'Weak';
+  eventRisk: 'Near' | 'Clear';
+}
+
 export interface TacticalSentinelEvaluation {
   score: number;
   status: TacticalSentinelStatus;
   entryQuality: string[];
   risks: string[];
   failureTrigger: string;
+  labels?: TacticalLabels;
+  integrityFlags?: string[];
   details: {
     technicalAlignment: EvaluationDetail;
     momentumRegime: EvaluationDetail;
@@ -49,4 +63,5 @@ export interface HorizonEvaluationResult {
   evaluatedAt: number;
   strategicGrowth: StrategicGrowthEvaluation;
   tacticalSentinel: TacticalSentinelEvaluation;
+  horizonLabel?: string;
 }

@@ -8,21 +8,22 @@ import type {
   DataConfidence 
 } from "@shared/types";
 
-import { fetchFMPPrice, fetchFMPFinancials, fetchFMPTechnicals } from "../providers/fmp";
-import { fetchFinnhubSentiment, fetchFinnhubInstitutional, fetchFinnhubOptions, fetchFinnhubQuote } from "../providers/finnhub";
-import { fetchMarketstackHistorical, fetchMarketstackQuote } from "../providers/marketstack";
-
-import { normalizeFMPPrice, normalizeMarketstackQuote, normalizeFinnhubQuote } from "../normalization/normalizePrice";
-import { normalizeFMPFinancials } from "../normalization/normalizeFinancials";
-import { normalizeFMPTechnicals } from "../normalization/normalizeTechnicals";
-import { normalizeFinnhubSentiment, normalizeFinnhubOptions, normalizePutCallRatio } from "../normalization/normalizeSentiment";
-import { normalizeMarketstackHistorical } from "../normalization/normalizeHistorical";
-
+import { getMarketData } from "../providers/adapter";
 import { stockCache, CACHE_TTL } from "./cache";
-import { getMockSnapshot } from "./mockFallback";
-import { logger, providerGuard } from "../../infra";
+import { logger } from "../../infra";
 import { evaluateConfidence, type ConfidenceResult } from "../../domain/confidence/confidenceEvaluator";
-import { ENGINE_VERSIONS } from "../../domain/engineMeta";
+
+const SYMBOL_COMPANY_MAP: Record<string, { name: string; sector: string; industry: string }> = {
+  AAPL: { name: "Apple Inc.", sector: "Technology", industry: "Consumer Electronics" },
+  MSFT: { name: "Microsoft Corporation", sector: "Technology", industry: "Software" },
+  GOOGL: { name: "Alphabet Inc.", sector: "Communication Services", industry: "Internet Content" },
+  AMZN: { name: "Amazon.com Inc.", sector: "Consumer Discretionary", industry: "E-Commerce" },
+  NVDA: { name: "NVIDIA Corporation", sector: "Technology", industry: "Semiconductors" },
+  META: { name: "Meta Platforms Inc.", sector: "Communication Services", industry: "Social Media" },
+  TSLA: { name: "Tesla Inc.", sector: "Consumer Discretionary", industry: "Automotive" },
+  JPM: { name: "JPMorgan Chase & Co.", sector: "Financial Services", industry: "Banking" },
+  V: { name: "Visa Inc.", sector: "Financial Services", industry: "Payment Processing" },
+};
 
 const DEFAULT_FUNDAMENTALS: StockFundamentals = {
   revenueGrowthYoY: [],
@@ -63,188 +64,199 @@ function determineConfidence(
   return { level: result.level, result };
 }
 
+function determineTrend(prices: Array<{ close: number }>): "UP" | "DOWN" | "SIDEWAYS" {
+  if (prices.length < 20) return "SIDEWAYS";
+  
+  const recent = prices.slice(0, 5).reduce((sum, p) => sum + p.close, 0) / 5;
+  const older = prices.slice(15, 20).reduce((sum, p) => sum + p.close, 0) / 5;
+  
+  const changePercent = ((recent - older) / older) * 100;
+  
+  if (changePercent > 3) return "UP";
+  if (changePercent < -3) return "DOWN";
+  return "SIDEWAYS";
+}
+
 export async function getStockSnapshot(symbol: string): Promise<StockSnapshot | null> {
-  const cacheKey = `snapshot:${symbol}`;
+  const upperSymbol = symbol.toUpperCase();
+  const cacheKey = `snapshot:${upperSymbol}`;
   const cached = stockCache.get<StockSnapshot>(cacheKey);
   
-  const log = logger.withContext({ symbol });
+  const log = logger.withContext({ symbol: upperSymbol });
   
   if (cached) {
     log.cacheHit("Using cached snapshot");
     return cached;
   }
 
-  log.cacheMiss("Fetching fresh data");
+  log.cacheMiss("Fetching fresh data via provider adapter");
 
-  const providersUsed: string[] = [];
-  const providersFailed: string[] = [];
-  const warnings: string[] = [];
+  try {
+    const marketData = await getMarketData(upperSymbol);
+    const { quote, ohlc, technicals, fundamentals, sentiment, options, meta } = marketData;
 
-  const [
-    finnhubQuoteResult,
-    fmpPriceResult,
-    fmpFinancialsResult,
-    fmpTechnicalsResult,
-    finnhubSentimentResult,
-    finnhubInstitutionalResult,
-    finnhubOptionsResult,
-    marketstackHistoricalResult,
-    marketstackQuoteResult
-  ] = await Promise.allSettled([
-    fetchFinnhubQuote(symbol),
-    fetchFMPPrice(symbol),
-    fetchFMPFinancials(symbol),
-    fetchFMPTechnicals(symbol),
-    fetchFinnhubSentiment(symbol),
-    fetchFinnhubInstitutional(symbol),
-    fetchFinnhubOptions(symbol),
-    fetchMarketstackHistorical(symbol),
-    fetchMarketstackQuote(symbol)
-  ]);
+    const companyInfo = SYMBOL_COMPANY_MAP[upperSymbol] || {
+      name: `${upperSymbol} Inc.`,
+      sector: "Unknown",
+      industry: "Unknown",
+    };
 
-  const finnhubQuote = finnhubQuoteResult.status === "fulfilled" ? finnhubQuoteResult.value : null;
-  const fmpPrice = fmpPriceResult.status === "fulfilled" ? fmpPriceResult.value : null;
-  const fmpFinancials = fmpFinancialsResult.status === "fulfilled" ? fmpFinancialsResult.value : null;
-  const fmpTechnicals = fmpTechnicalsResult.status === "fulfilled" ? fmpTechnicalsResult.value : null;
-  const finnhubSentiment = finnhubSentimentResult.status === "fulfilled" ? finnhubSentimentResult.value : null;
-  const finnhubInstitutional = finnhubInstitutionalResult.status === "fulfilled" ? finnhubInstitutionalResult.value : null;
-  const finnhubOptions = finnhubOptionsResult.status === "fulfilled" ? finnhubOptionsResult.value : null;
-  const marketstackHistorical = marketstackHistoricalResult.status === "fulfilled" ? marketstackHistoricalResult.value : null;
-  const marketstackQuote = marketstackQuoteResult.status === "fulfilled" ? marketstackQuoteResult.value : null;
+    const historicalPrices: HistoricalPrice[] = ohlc.map((candle) => ({
+      date: new Date(candle.timestamp).toISOString().split("T")[0],
+      open: candle.open,
+      high: candle.high,
+      low: candle.low,
+      close: candle.close,
+      volume: candle.volume,
+    }));
 
-  if (finnhubQuote) providersUsed.push("Finnhub-Quote");
-  else providersFailed.push("Finnhub-Quote");
+    const dailyTrend = determineTrend(ohlc);
+    const weeklyTrend = determineTrend(ohlc.filter((_, i) => i % 5 === 0));
 
-  if (fmpPrice) providersUsed.push("FMP-Price");
-  else providersFailed.push("FMP-Price");
-  
-  if (marketstackQuote) providersUsed.push("Marketstack-Quote");
-  else providersFailed.push("Marketstack-Quote");
+    const priceVsMA50 = technicals.sma50 && quote.price > 0
+      ? ((quote.price - technicals.sma50) / technicals.sma50) * 100
+      : 0;
+    const priceVsMA200 = technicals.sma200 && quote.price > 0
+      ? ((quote.price - technicals.sma200) / technicals.sma200) * 100
+      : 0;
 
-  if (fmpFinancials) providersUsed.push("FMP-Financials");
-  else {
-    providersFailed.push("FMP-Financials");
-    warnings.push("Financial data may be incomplete");
-  }
+    const stockTechnicals: StockTechnicals = {
+      atr: technicals.atr || 0,
+      atrPercent: technicals.atrPercent || 0,
+      rsi: technicals.rsi || 50,
+      movingAverages: {
+        ma20: technicals.sma20 || 0,
+        ma50: technicals.sma50 || 0,
+        ma200: technicals.sma200 || 0,
+      },
+      priceVsMA50,
+      priceVsMA200,
+      weeklyTrend,
+      dailyTrend,
+    };
 
-  if (fmpTechnicals) providersUsed.push("FMP-Technicals");
-  else {
-    providersFailed.push("FMP-Technicals");
-    warnings.push("Technical indicators may be incomplete");
-  }
+    const stockFundamentals: StockFundamentals = {
+      revenueGrowthYoY: fundamentals.revenueGrowthYoY || [],
+      epsGrowthYoY: fundamentals.epsGrowthYoY || [],
+    };
 
-  if (finnhubSentiment) providersUsed.push("Finnhub-Sentiment");
-  else providersFailed.push("Finnhub-Sentiment");
+    const ratingMap: Record<string, number> = {
+      "Strong Buy": 5,
+      "Buy": 4,
+      "Hold": 3,
+      "Sell": 2,
+      "Strong Sell": 1,
+    };
 
-  if (finnhubInstitutional) providersUsed.push("Finnhub-Institutional");
-  else providersFailed.push("Finnhub-Institutional");
+    const stockSentiment: StockSentiment = {
+      analystRating: sentiment.analystRating ? ratingMap[sentiment.analystRating] || 3 : undefined,
+      analystPriceTarget: sentiment.targetPrice,
+      insiderBuying: sentiment.insiderBuyRatio ? sentiment.insiderBuyRatio > 0.5 : undefined,
+      institutionalOwnership: sentiment.institutionalOwnership,
+      putCallRatio: options.putCallRatio,
+    };
 
-  if (finnhubOptions) providersUsed.push("Finnhub-Options");
-  else providersFailed.push("Finnhub-Options");
+    const stockOptions: StockOptions = {
+      callOpenInterest: options.totalCallOI,
+      putOpenInterest: options.totalPutOI,
+    };
 
-  if (marketstackHistorical) providersUsed.push("Marketstack-Historical");
-  else providersFailed.push("Marketstack-Historical");
+    const confidenceResult = determineConfidence(meta.providersUsed, meta.providersFailed, {
+      priceDataAvailable: true,
+      technicalsAvailable: technicals.rsi !== undefined,
+      fundamentalsAvailable: fundamentals.revenueGrowthYoY.length > 0,
+      sentimentAvailable: sentiment.analystRating !== undefined,
+      optionsAvailable: options.putCallRatio !== undefined,
+    });
 
-  let normalizedPrice = normalizeFinnhubQuote(finnhubQuote, symbol);
-  let priceSource = "Finnhub";
-  
-  if (!normalizedPrice) {
-    normalizedPrice = normalizeFMPPrice(fmpPrice);
-    priceSource = "FMP";
-  }
-  
-  if (!normalizedPrice) {
-    normalizedPrice = normalizeMarketstackQuote(marketstackQuote, symbol);
-    priceSource = "Marketstack";
-  }
+    const snapshot: StockSnapshot = {
+      symbol: upperSymbol,
+      companyName: companyInfo.name,
+      price: quote.price,
+      change: quote.change,
+      changePercent: quote.changePercent,
+      volume: quote.volume,
+      marketCap: fundamentals.marketCap || 0,
+      sector: companyInfo.sector,
+      industry: companyInfo.industry,
 
-  if (!normalizedPrice) {
-    log.fallback("No price data from any provider, falling back to mock data");
-    providerGuard.recordFailure("Finnhub");
-    providerGuard.recordFailure("FMP");
-    providerGuard.recordFailure("Marketstack");
-    const mockSnapshot = getMockSnapshot(symbol);
-    if (mockSnapshot) {
-      stockCache.set(cacheKey, mockSnapshot, CACHE_TTL.SNAPSHOT);
-    }
-    return mockSnapshot;
-  }
-  
-  log.dataFetch(`Using ${priceSource} quote: $${normalizedPrice.price}`, { provider: priceSource, price: normalizedPrice.price });
-  const normalizedFundamentals = normalizeFMPFinancials(fmpFinancials);
-  const normalizedTechnicals = normalizeFMPTechnicals(fmpTechnicals, fmpPrice);
-  const normalizedSentiment = normalizeFinnhubSentiment(finnhubSentiment, finnhubInstitutional);
-  const normalizedOptions = normalizeFinnhubOptions(finnhubOptions);
-  const normalizedHistorical = normalizeMarketstackHistorical(marketstackHistorical);
+      fundamentals: {
+        ...DEFAULT_FUNDAMENTALS,
+        ...stockFundamentals,
+      },
 
-  const putCallRatio = normalizePutCallRatio(finnhubOptions);
-  if (putCallRatio !== undefined) {
-    normalizedSentiment.putCallRatio = putCallRatio;
-  }
+      technicals: {
+        ...DEFAULT_TECHNICALS,
+        ...stockTechnicals,
+      },
 
-  const snapshot: StockSnapshot = {
-    symbol: normalizedPrice!.symbol,
-    companyName: normalizedPrice!.companyName,
-    price: normalizedPrice!.price,
-    change: normalizedPrice!.change,
-    changePercent: normalizedPrice!.changePercent,
-    volume: normalizedPrice!.volume,
-    marketCap: normalizedPrice!.marketCap,
-    sector: normalizedPrice!.sector,
-    industry: normalizedPrice!.industry,
+      sentiment: {
+        ...DEFAULT_SENTIMENT,
+        ...stockSentiment,
+      },
 
-    fundamentals: {
-      ...DEFAULT_FUNDAMENTALS,
-      ...normalizedFundamentals,
-    },
+      options: {
+        ...DEFAULT_OPTIONS,
+        ...stockOptions,
+      },
 
-    technicals: {
-      ...DEFAULT_TECHNICALS,
-      ...normalizedTechnicals,
-    } as StockTechnicals,
+      historicalPrices,
 
-    sentiment: {
-      ...DEFAULT_SENTIMENT,
-      ...normalizedSentiment,
-    },
-
-    options: {
-      ...DEFAULT_OPTIONS,
-      ...normalizedOptions,
-    },
-
-    historicalPrices: normalizedHistorical,
-
-    meta: (() => {
-      const confidenceResult = determineConfidence(providersUsed, providersFailed, {
-        priceDataAvailable: !!normalizedPrice,
-        technicalsAvailable: !!fmpTechnicals,
-        fundamentalsAvailable: !!fmpFinancials,
-        sentimentAvailable: !!finnhubSentiment,
-        optionsAvailable: !!finnhubOptions,
-      });
-      return {
+      meta: {
         dataFreshness: new Date(),
-        providersUsed,
-        providersFailed,
+        providersUsed: meta.providersUsed,
+        providersFailed: meta.providersFailed,
         confidence: confidenceResult.level,
         confidenceScore: confidenceResult.result.score,
         confidenceReasons: confidenceResult.result.reasons,
-        warnings,
-      };
-    })(),
-  };
+        warnings: [],
+      },
+    };
 
-  for (const provider of providersUsed) {
-    const providerName = provider.split("-")[0];
-    providerGuard.recordSuccess(providerName);
+    log.dataFetch(`Snapshot ready via ${meta.providersUsed.join(", ")}`, { 
+      price: quote.price,
+      providers: meta.providersUsed.length,
+    });
+
+    stockCache.set(cacheKey, snapshot, CACHE_TTL.SNAPSHOT);
+
+    return snapshot;
+  } catch (error) {
+    log.error("PROVIDER_FAILURE", `Failed to fetch stock data: ${error}`);
+    
+    const companyInfo = SYMBOL_COMPANY_MAP[upperSymbol] || {
+      name: `${upperSymbol} Inc.`,
+      sector: "Unknown",
+      industry: "Unknown",
+    };
+
+    const fallbackSnapshot: StockSnapshot = {
+      symbol: upperSymbol,
+      companyName: companyInfo.name,
+      price: 100,
+      change: 0,
+      changePercent: 0,
+      volume: 0,
+      marketCap: 0,
+      sector: companyInfo.sector,
+      industry: companyInfo.industry,
+      fundamentals: DEFAULT_FUNDAMENTALS,
+      technicals: DEFAULT_TECHNICALS,
+      sentiment: DEFAULT_SENTIMENT,
+      options: DEFAULT_OPTIONS,
+      historicalPrices: [],
+      meta: {
+        dataFreshness: new Date(),
+        providersUsed: [],
+        providersFailed: ["All-Providers"],
+        confidence: "LOW",
+        confidenceScore: 0,
+        confidenceReasons: ["Emergency fallback - all providers failed"],
+        warnings: ["Using emergency fallback data"],
+      },
+    };
+
+    stockCache.set(cacheKey, fallbackSnapshot, 30);
+    return fallbackSnapshot;
   }
-  for (const provider of providersFailed) {
-    const providerName = provider.split("-")[0];
-    providerGuard.recordFailure(providerName);
-  }
-
-  stockCache.set(cacheKey, snapshot, CACHE_TTL.SNAPSHOT);
-
-  return snapshot;
 }

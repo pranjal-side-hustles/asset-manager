@@ -14,24 +14,35 @@ interface Phase2ExplainerProps {
 function getSectorRegimeExplanation(regime?: string): string {
   switch (regime) {
     case "FAVORED":
-      return "Sector conditions supportive for new positions";
+      return "This sector is doing well right now";
     case "NEUTRAL":
-      return "Sector regime is neutral - selective exposure";
+      return "This sector is mixed - be selective";
     case "AVOID":
-      return "Sector conditions unfavorable - caution advised";
+      return "This sector is struggling - extra caution needed";
     default:
-      return "Sector analysis not available";
+      return "Sector information not available";
   }
 }
 
 function getPortfolioExplanation(action?: string): string | null {
   switch (action) {
     case "REDUCE":
-      return "Portfolio constraints suggest reduced position sizing";
+      return "You may already have enough in similar investments";
     case "BLOCK":
-      return "Portfolio capacity exhausted or sector concentration too high";
+      return "Adding more here could put too much in one basket";
     default:
       return null;
+  }
+}
+
+function getCapitalPriorityLabel(priority: string): string {
+  switch (priority) {
+    case "BUY": return "Good to Act Now";
+    case "ACCUMULATE": return "Add Gradually";
+    case "PILOT": return "Worth a Small Look";
+    case "WATCH": return "Keep an Eye On";
+    case "BLOCKED": return "Pause for Now";
+    default: return priority;
   }
 }
 
@@ -62,7 +73,7 @@ export function Phase2Explainer({
         data-testid="button-phase2-explainer"
       >
         <Target className="w-3 h-3" />
-        <span>Why {capitalPriority}?</span>
+        <span>Why we say "{getCapitalPriorityLabel(capitalPriority)}"</span>
         {isExpanded ? (
           <ChevronUp className="w-3 h-3 ml-auto" />
         ) : (
