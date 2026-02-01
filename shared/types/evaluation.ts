@@ -46,6 +46,13 @@ export interface DashboardStock {
   capitalPriority?: "BUY" | "ACCUMULATE" | "PILOT" | "WATCH" | "BLOCKED";
   rankInSector?: number;
   phase2Reasons?: string[];
+  // Phase 2 lockdown fields
+  decisionLabel?: {
+    displayText: string;
+    explanation: string;
+    label: "GOOD_TO_ACT" | "KEEP_AN_EYE_ON" | "PAUSE";
+  };
+  marketRegime?: "RISK_ON" | "RISK_OFF" | "NEUTRAL";
 }
 
 export interface DashboardResponse {

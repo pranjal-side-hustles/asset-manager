@@ -22,6 +22,7 @@ import { evaluatePortfolioConstraints } from "../../domain/portfolio/portfolioCo
 import { rankStocks } from "../../domain/ranking/relativeRankingEngine";
 import type { PortfolioSnapshot } from "@shared/types/portfolio";
 import { deriveHorizonLabel } from "../../domain/calibration";
+import { getDecisionLabel } from "../../domain/decisionLabels";
 
 const TRACKED_SYMBOLS = [
   "AAPL",
@@ -371,6 +372,14 @@ export async function fetchDashboardStocks(): Promise<DashboardStock[]> {
       capitalPriority: ranked?.capitalPriority || "WATCH",
       rankInSector: ranked?.rankInSector,
       phase2Reasons: ranked?.reasons,
+      // Phase 2 lockdown fields
+      decisionLabel: getDecisionLabel(
+        s.tacticalSentinel.score,
+        s.portfolioAction !== "ALLOW" || s.sectorRegime === "AVOID",
+        ranked?.reasons || [],
+        marketContext.regime
+      ),
+      marketRegime: marketContext.regime,
     };
   });
 
