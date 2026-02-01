@@ -361,6 +361,68 @@ Confidence degrades based on:
 - Missing data types (price, technicals, fundamentals, sentiment, options)
 - Market regime uncertainty
 
+## Phase 1 Polish - UX Explainability
+
+Phase 1 Polish adds transparency features to make evaluations understandable without changing scoring logic:
+
+### Regime Context Labels
+
+StatusBadge displays contextual labels based on market regime and trade status:
+
+| Regime | Status | Context Label |
+|--------|--------|---------------|
+| RISK_ON | ELIGIBLE/TRADE | "Regime Tailwind" |
+| RISK_ON | WATCH | "Needs Confirmation" |
+| RISK_ON | REJECT/AVOID | "Technical Breakdown" |
+| RISK_OFF | ELIGIBLE/TRADE | "Despite Risk-Off" |
+| RISK_OFF | WATCH | "Regime Headwind" |
+| RISK_OFF | REJECT/AVOID | "Structure Broken" |
+| NEUTRAL | ELIGIBLE/TRADE | "Mixed Market" |
+| NEUTRAL | WATCH | "Selective Entry" |
+| NEUTRAL | REJECT/AVOID | "Weak Setup" |
+
+### WhyExplainer Component
+
+Collapsible "Why STATUS?" panels in horizon cards showing:
+- **Key Strengths**: Top 3 positive factors from evaluation
+- **Main Risk**: Primary failure mode or risk
+- **Market Impact**: Plain-English explanation of regime adjustment
+
+### ConfidenceIndicator Component
+
+Badge with tooltip showing data quality:
+- **HIGH**: 80%+ of data providers responded
+- **MEDIUM**: 50-80% provider availability
+- **LOW**: <50% providers, using fallback data
+
+### RegimeExplainer
+
+Expandable panel in MarketContextPanel showing:
+- Index summary (e.g., "3/4 major indices above 200DMA")
+- Breadth summary (e.g., "65% of stocks in uptrends - healthy participation")
+- Volatility summary (e.g., "VIX at 18.5 - calm conditions for trend trades")
+- Implication text for trading decisions
+
+### Dashboard StatsCards
+
+Dynamic subtitles on summary cards:
+- Trade Eligible: "Short-term momentum setups" or "No setups currently"
+- On Watch: "Waiting for confirmation" or "All stocks decided"
+- Avg Strategic/Tactical: Context based on score and regime
+
+### Architecture
+
+```
+client/src/components/stock/
+├── StatusBadge.tsx        # Regime context display
+├── WhyExplainer.tsx       # Collapsible why panels
+├── ConfidenceIndicator.tsx # Data quality badge
+└── HorizonPanel.tsx       # Integration point
+
+client/src/components/market/
+└── MarketContextPanel.tsx # RegimeExplainer integrated
+```
+
 ## Development
 
 Run the application:
