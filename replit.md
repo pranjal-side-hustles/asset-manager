@@ -90,4 +90,15 @@ server/domain/portfolio/portfolioConstraintEngine.ts  # evaluatePortfolioConstra
 
 Actions: ALLOW | REDUCE | BLOCK
 
-Both engines are callable independently and NOT integrated into scoring yet.
+### Relative Ranking Engine
+
+Answers: "Among acceptable stocks, which deserve capital priority?"
+
+```
+shared/types/ranking.ts                     # Types
+server/domain/ranking/relativeRankingEngine.ts  # rankStocks()
+```
+
+Priorities: BUY | ACCUMULATE | PILOT | WATCH | BLOCKED
+
+All three Phase 2 engines are callable independently and NOT integrated into scoring yet.
