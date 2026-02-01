@@ -7,9 +7,9 @@ import type {
   OptionsData,
 } from "./types";
 import { mockProvider } from "./mockProvider";
-import { rateLimitedFetch } from "../providers/finnhub/rateLimiter";
-import { 
-  fetchMarketstackEOD, 
+import { rateLimitedFetch } from "../finnhub/rateLimiter";
+import {
+  fetchMarketstackEOD,
   isMarketstackAvailable,
   clearCache as clearMarketstackCache,
   getCacheStats,
@@ -122,7 +122,7 @@ export async function getEODPrice(symbol: string): Promise<EODPriceResult> {
 
 function computeTechnicalsFromOHLC(ohlc: OHLCData[], currentPrice: number): TechnicalIndicators {
   const closes = ohlc.map(c => c.close);
-  
+
   const calcSMA = (period: number): number => {
     if (closes.length < period) {
       return closes.length > 0 ? closes.reduce((a, b) => a + b, 0) / closes.length : currentPrice;
@@ -136,7 +136,7 @@ function computeTechnicalsFromOHLC(ohlc: OHLCData[], currentPrice: number): Tech
 
   const calcATR = (period: number): number => {
     if (ohlc.length < period + 1) return currentPrice * 0.02;
-    
+
     const trueRanges: number[] = [];
     for (let i = 0; i < Math.min(period, ohlc.length - 1); i++) {
       const current = ohlc[i];
@@ -148,18 +148,18 @@ function computeTechnicalsFromOHLC(ohlc: OHLCData[], currentPrice: number): Tech
       );
       trueRanges.push(tr);
     }
-    
-    return trueRanges.length > 0 
-      ? trueRanges.reduce((a, b) => a + b, 0) / trueRanges.length 
+
+    return trueRanges.length > 0
+      ? trueRanges.reduce((a, b) => a + b, 0) / trueRanges.length
       : currentPrice * 0.02;
   };
 
   const calcRSI = (period: number): number => {
     if (closes.length < period + 1) return 50;
-    
+
     const gains: number[] = [];
     const losses: number[] = [];
-    
+
     for (let i = 0; i < period && i < closes.length - 1; i++) {
       const diff = closes[i] - closes[i + 1];
       if (diff > 0) {
@@ -170,12 +170,12 @@ function computeTechnicalsFromOHLC(ohlc: OHLCData[], currentPrice: number): Tech
         losses.push(Math.abs(diff));
       }
     }
-    
+
     const avgGain = gains.reduce((a, b) => a + b, 0) / period;
     const avgLoss = losses.reduce((a, b) => a + b, 0) / period;
-    
+
     if (avgLoss === 0) return 100;
-    
+
     const rs = avgGain / avgLoss;
     return 100 - (100 / (1 + rs));
   };
@@ -222,7 +222,7 @@ export async function getMarketData(symbol: string): Promise<AggregatedMarketDat
 
   if (eodResult.success && eodResult.data) {
     const { eod, ohlc } = eodResult.data;
-    
+
     quote = {
       symbol: eod.symbol,
       price: eod.close,
@@ -246,12 +246,12 @@ export async function getMarketData(symbol: string): Promise<AggregatedMarketDat
     }));
 
     technicals = computeTechnicalsFromOHLC(ohlc, eod.close);
-    
+
     priceSource = "Marketstack";
     eodDate = eod.date;
     dataCached = eodResult.cached;
     providersUsed.push("Marketstack-EOD");
-    
+
     log.dataFetch(`Market data for ${upperSymbol}: EOD $${eod.close} (${eod.date})`, {
       cached: dataCached,
       ohlcDays: ohlc.length,
@@ -321,7 +321,7 @@ export async function getMarketData(symbol: string): Promise<AggregatedMarketDat
         volume: 0,
         timestamp: 0,
       };
-      
+
       ohlcCandles = [];
       technicals = {
         rsi: 0,
@@ -333,7 +333,7 @@ export async function getMarketData(symbol: string): Promise<AggregatedMarketDat
         atr: 0,
         atrPercent: 0,
       };
-      
+
       priceSource = "Unavailable";
     }
   }
