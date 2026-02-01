@@ -5,6 +5,5 @@ export * from "./confirmation";
 export * from "./phase3";
 export * from "./phase4";
 export * from "./playbookTracking";
-
-
-
+export * from "./canonicalPrice";
+export * from "./scoreBands";
