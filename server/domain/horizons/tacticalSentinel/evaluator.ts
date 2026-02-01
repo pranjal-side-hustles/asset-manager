@@ -15,6 +15,7 @@ import { ENGINE_VERSIONS, createEngineMetadata } from "../../engineMeta";
 import { logger } from "../../../infra/logging/logger";
 import { evaluateIntegrityGate } from "../../risk/integrityAudit";
 import { deriveHorizonLabel } from "../../calibration";
+import { roundScore } from "@shared/utils/scoring";
 
 export interface TacticalSentinelResult extends TacticalSentinelEvaluation {
   meta: {
@@ -106,7 +107,7 @@ export function evaluateTacticalSentinel(
   
   return {
     ...evaluation,
-    score: adjustedScore,
+    score: roundScore(adjustedScore),
     status: adjustedStatus as "TRADE" | "WATCH" | "AVOID",
     integrityFlags: integrityResult.riskFlags.length > 0 ? integrityResult.riskFlags : undefined,
     meta,
