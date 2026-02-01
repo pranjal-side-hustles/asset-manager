@@ -116,3 +116,17 @@ All three Phase 2 engines are now integrated into the dashboard API and UI:
 2. Sector data is derived from market context with fallback mapping for known symbols
 3. Results are returned with Phase 2 fields in the dashboard response
 4. UI displays differentiated capital priorities based on sector regimes and rankings
+
+## Documentation
+
+For complete technical documentation including all strategies, factors, weights, and decision flows, see:
+- **[STRATEGY_DOCUMENTATION.md](./STRATEGY_DOCUMENTATION.md)** - Comprehensive guide for model recreation
+
+## Recent Features
+
+### Stock Search
+- Search bar in header allows searching by ticker symbol or company name
+- Uses Finnhub symbol search API with 300ms debounce
+- Dropdown shows top 10 matching US common stocks
+- Keyboard navigation support (Arrow keys, Enter, Escape)
+- API endpoint: `GET /api/stocks/search?q={query}`
