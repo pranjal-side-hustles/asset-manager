@@ -4,7 +4,7 @@
 ARG NODE_VERSION=22.21.1
 FROM node:${NODE_VERSION}-slim AS base
 
-LABEL fly_launch_runtime="Node.js"
+LABEL maintainer="TradeMatrix Asset Manager"
 
 # Node.js app lives here
 WORKDIR /app
@@ -40,6 +40,8 @@ FROM base
 # Copy built application
 COPY --from=build /app /app
 
-# Start the server by default, this can be overwritten at runtime
+# Default port - can be overridden by Railway via PORT environment variable
 EXPOSE 3000
-CMD [ "npm", "run", "start" ]
+
+# Use the built application directly for fastest startup
+CMD [ "node", "dist/index.cjs" ]

@@ -215,13 +215,30 @@ export default function Dashboard() {
           )}
         </div>
 
+        {data?.dataWarning ? (
+          <Card className="border-amber-500/50 bg-amber-500/5">
+            <CardContent className="p-4 flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-medium text-amber-800 dark:text-amber-200">Market data unavailable</p>
+                <p className="text-sm text-muted-foreground mt-1">{data.dataWarning}</p>
+                <Button variant="outline" size="sm" className="mt-3" onClick={() => refetch()} data-testid="button-retry-warning">
+                  Retry
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ) : null}
         {error ? (
           <Card>
             <CardContent className="p-8 text-center">
               <AlertCircle className="w-12 h-12 text-stock-reject mx-auto mb-4" />
               <h2 className="text-xl font-semibold mb-2">Failed to Load Data</h2>
-              <p className="text-muted-foreground mb-4">
+              <p className="text-muted-foreground mb-2">
                 Unable to fetch stock data. Please try again.
+              </p>
+              <p className="text-sm text-muted-foreground/80 font-mono mb-4 break-all">
+                {error.message}
               </p>
               <Button onClick={() => refetch()} data-testid="button-retry">
                 Retry

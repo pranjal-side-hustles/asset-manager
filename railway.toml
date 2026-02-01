@@ -2,11 +2,13 @@
 # https://docs.railway.app/guides/config-as-code
 
 [build]
-builder = "nixpacks"
-# Install devDependencies so tsx/vite/esbuild are available for npm run build
-buildCommand = "npm install --include=dev && npm run build"
+# Use Dockerfile for consistent, reproducible builds across environments
+builder = "dockerfile"
 
 [deploy]
+# The Dockerfile CMD runs the built application directly
+# Port is configured in Dockerfile and picked up from PORT environment variable
 startCommand = "node dist/index.cjs"
 healthcheckPath = "/api/infra/health"
 healthcheckTimeout = 30
+restartPolicyMaxRetries = 5

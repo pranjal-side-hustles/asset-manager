@@ -4,7 +4,7 @@ import { fetchStockEvaluation, fetchDashboardStocks } from "./services/stocks/fe
 import { searchStocks } from "./services/stocks/searchStocks";
 import { logger, providerGuard, refreshManager } from "./infra";
 import { ENGINE_VERSIONS } from "./domain/engineMeta";
-import { getMarketContext } from "./domain/marketContext/marketContextEngine";
+import { getMarketContext, getDefaultMarketContextSnapshot } from "./domain/marketContext/marketContextEngine";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -24,10 +24,21 @@ export async function registerRoutes(
         marketConfidence: marketContext.context.confidence,
       });
     } catch (error) {
-      logger.error("DATA_FETCH", "Error fetching dashboard data", { 
-        error: error instanceof Error ? error.message : "Unknown error" 
+      logger.error("DATA_FETCH", "Error fetching dashboard data", {
+        error: error instanceof Error ? error.message : "Unknown error",
       });
-      res.status(500).json({ error: "Failed to fetch dashboard data" });
+      // Return 200 with fallback so UI loads; frontend shows dataWarning
+      const fallbackContext = getDefaultMarketContextSnapshot(
+        error instanceof Error ? error.message : "Unknown error"
+      );
+      res.status(200).json({
+        stocks: [],
+        lastUpdated: Date.now(),
+        marketRegime: fallbackContext.context.regime,
+        marketConfidence: fallbackContext.context.confidence,
+        dataWarning:
+          "Unable to load market data. Add FINNHUB_API_KEY, MARKETSTACK_API_KEY, and FMP_API_KEY in Vercel (or Railway) Environment Variables, then redeploy.",
+      });
     }
   });
 
