@@ -1,3 +1,5 @@
+import { rateLimitedFetch } from "./rateLimiter";
+
 const FINNHUB_BASE_URL = "https://finnhub.io/api/v1";
 
 interface FinnhubQuoteResponse {
@@ -34,7 +36,7 @@ export async function fetchFinnhubQuote(
   }
 
   try {
-    const response = await fetch(
+    const response = await rateLimitedFetch(
       `${FINNHUB_BASE_URL}/quote?symbol=${symbol}&token=${apiKey}`
     );
 

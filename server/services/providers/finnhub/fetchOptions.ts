@@ -1,3 +1,5 @@
+import { rateLimitedFetch } from "./rateLimiter";
+
 const FINNHUB_BASE_URL = "https://finnhub.io/api/v1";
 
 interface FinnhubOptionChain {
@@ -44,7 +46,7 @@ export async function fetchFinnhubOptions(symbol: string): Promise<FinnhubOption
   }
 
   try {
-    const response = await fetch(
+    const response = await rateLimitedFetch(
       `${FINNHUB_BASE_URL}/stock/option-chain?symbol=${symbol}&token=${apiKey}`
     );
 

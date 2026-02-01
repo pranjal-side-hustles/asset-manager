@@ -1,3 +1,5 @@
+import { rateLimitedFetch } from "./rateLimiter";
+
 const FINNHUB_BASE_URL = "https://finnhub.io/api/v1";
 
 interface FinnhubSentiment {
@@ -47,11 +49,10 @@ export async function fetchFinnhubSentiment(symbol: string): Promise<FinnhubSent
   }
 
   try {
-    const [sentimentRes, recommendationRes, priceTargetRes] = await Promise.all([
-      fetch(`${FINNHUB_BASE_URL}/stock/insider-sentiment?symbol=${symbol}&from=2024-01-01&token=${apiKey}`),
-      fetch(`${FINNHUB_BASE_URL}/stock/recommendation?symbol=${symbol}&token=${apiKey}`),
-      fetch(`${FINNHUB_BASE_URL}/stock/price-target?symbol=${symbol}&token=${apiKey}`)
-    ]);
+    // Sequential calls with rate limiting to avoid hitting API limits
+    const sentimentRes = await rateLimitedFetch(`${FINNHUB_BASE_URL}/stock/insider-sentiment?symbol=${symbol}&from=2024-01-01&token=${apiKey}`);
+    const recommendationRes = await rateLimitedFetch(`${FINNHUB_BASE_URL}/stock/recommendation?symbol=${symbol}&token=${apiKey}`);
+    const priceTargetRes = await rateLimitedFetch(`${FINNHUB_BASE_URL}/stock/price-target?symbol=${symbol}&token=${apiKey}`);
 
     let insiderBuying = false;
     if (sentimentRes.ok) {

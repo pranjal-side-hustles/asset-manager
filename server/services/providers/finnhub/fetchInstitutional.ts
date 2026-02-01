@@ -1,3 +1,5 @@
+import { rateLimitedFetch } from "./rateLimiter";
+
 const FINNHUB_BASE_URL = "https://finnhub.io/api/v1";
 
 interface FinnhubOwnership {
@@ -35,10 +37,9 @@ export async function fetchFinnhubInstitutional(symbol: string): Promise<Finnhub
   }
 
   try {
-    const [ownershipRes, fundRes] = await Promise.all([
-      fetch(`${FINNHUB_BASE_URL}/stock/ownership?symbol=${symbol}&limit=10&token=${apiKey}`),
-      fetch(`${FINNHUB_BASE_URL}/stock/fund-ownership?symbol=${symbol}&limit=10&token=${apiKey}`)
-    ]);
+    // Sequential calls with rate limiting to avoid hitting API limits
+    const ownershipRes = await rateLimitedFetch(`${FINNHUB_BASE_URL}/stock/ownership?symbol=${symbol}&limit=10&token=${apiKey}`);
+    const fundRes = await rateLimitedFetch(`${FINNHUB_BASE_URL}/stock/fund-ownership?symbol=${symbol}&limit=10&token=${apiKey}`);
 
     let institutionalTrend: "INCREASING" | "FLAT" | "DECREASING" = "FLAT";
     let topHolders: string[] = [];
