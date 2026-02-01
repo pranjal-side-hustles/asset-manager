@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { ScoreCircle } from "./ScoreCircle";
 import { StatusBadge } from "./StatusBadge";
 import { EvaluationSection, DetailedEvaluation } from "./EvaluationSection";
+import { WhyExplainer } from "./WhyExplainer";
 import { useState } from "react";
 import { ChevronDown, Target, Shield } from "lucide-react";
 import type {
@@ -11,12 +12,14 @@ import type {
   TacticalSentinelEvaluation,
   EvaluationDetail,
 } from "@shared/types";
+import type { MarketRegime } from "@shared/types/marketContext";
 
 interface StrategicGrowthPanelProps {
   evaluation: StrategicGrowthEvaluation;
+  marketRegime?: MarketRegime;
 }
 
-export function StrategicGrowthPanel({ evaluation }: StrategicGrowthPanelProps) {
+export function StrategicGrowthPanel({ evaluation, marketRegime }: StrategicGrowthPanelProps) {
   const [showDetails, setShowDetails] = useState(false);
 
   const detailsArray: EvaluationDetail[] = Object.values(evaluation.details);
@@ -36,13 +39,27 @@ export function StrategicGrowthPanel({ evaluation }: StrategicGrowthPanelProps) 
               </p>
             </div>
           </div>
-          <StatusBadge status={evaluation.status} size="lg" />
+          <StatusBadge 
+            status={evaluation.status} 
+            size="lg" 
+            marketRegime={marketRegime}
+            showRegimeContext={true}
+          />
         </div>
       </CardHeader>
       <CardContent className="space-y-6 pt-4">
         <div className="flex items-center justify-center py-4">
           <ScoreCircle score={evaluation.score} size="xl" />
         </div>
+
+        <WhyExplainer
+          status={evaluation.status}
+          positives={evaluation.positives}
+          risks={evaluation.risks}
+          failureMode={evaluation.failureMode}
+          marketRegime={marketRegime}
+          horizonType="strategic"
+        />
 
         <div className="space-y-3">
           <EvaluationSection
@@ -96,9 +113,10 @@ export function StrategicGrowthPanel({ evaluation }: StrategicGrowthPanelProps) 
 
 interface TacticalSentinelPanelProps {
   evaluation: TacticalSentinelEvaluation;
+  marketRegime?: MarketRegime;
 }
 
-export function TacticalSentinelPanel({ evaluation }: TacticalSentinelPanelProps) {
+export function TacticalSentinelPanel({ evaluation, marketRegime }: TacticalSentinelPanelProps) {
   const [showDetails, setShowDetails] = useState(false);
 
   const detailsArray: EvaluationDetail[] = Object.values(evaluation.details);
@@ -118,13 +136,27 @@ export function TacticalSentinelPanel({ evaluation }: TacticalSentinelPanelProps
               </p>
             </div>
           </div>
-          <StatusBadge status={evaluation.status} size="lg" />
+          <StatusBadge 
+            status={evaluation.status} 
+            size="lg"
+            marketRegime={marketRegime}
+            showRegimeContext={true}
+          />
         </div>
       </CardHeader>
       <CardContent className="space-y-6 pt-4">
         <div className="flex items-center justify-center py-4">
           <ScoreCircle score={evaluation.score} size="xl" />
         </div>
+
+        <WhyExplainer
+          status={evaluation.status}
+          positives={evaluation.entryQuality}
+          risks={evaluation.risks}
+          failureMode={evaluation.failureTrigger}
+          marketRegime={marketRegime}
+          horizonType="tactical"
+        />
 
         <div className="space-y-3">
           <EvaluationSection

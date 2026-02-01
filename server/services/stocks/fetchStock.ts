@@ -14,7 +14,6 @@ export interface ExtendedStockEvaluationResponse extends StockEvaluationResponse
   dataConfidence: DataConfidence;
   warnings: string[];
   providersUsed: string[];
-  marketRegime?: string;
 }
 
 function snapshotToStock(snapshot: StockSnapshot): Stock {

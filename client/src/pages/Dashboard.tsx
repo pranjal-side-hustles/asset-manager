@@ -41,7 +41,28 @@ function DashboardSkeleton() {
   );
 }
 
-function StatsCards({ stocks }: { stocks: DashboardResponse["stocks"] }) {
+interface StatsCardsProps {
+  stocks: DashboardResponse["stocks"];
+  marketRegime?: DashboardResponse["marketRegime"];
+}
+
+function getStrategicSubtitle(avgScore: number, regime?: string): string {
+  if (regime === "RISK_OFF") return "Cautious market environment";
+  if (regime === "RISK_ON") return "Favorable conditions for positions";
+  if (avgScore >= 70) return "Strong setup across universe";
+  if (avgScore >= 50) return "Mixed signals, selectivity key";
+  return "Patience recommended";
+}
+
+function getTacticalSubtitle(avgScore: number, regime?: string): string {
+  if (regime === "RISK_OFF") return "Limited short-term setups";
+  if (regime === "RISK_ON") return "Multiple momentum opportunities";
+  if (avgScore >= 70) return "Active trading environment";
+  if (avgScore >= 50) return "Selective opportunities available";
+  return "Few clean entries";
+}
+
+function StatsCards({ stocks, marketRegime }: StatsCardsProps) {
   const eligibleCount = stocks.filter(
     (s) => s.strategicStatus === "ELIGIBLE" || s.tacticalStatus === "TRADE"
   ).length;
@@ -65,6 +86,9 @@ function StatsCards({ stocks }: { stocks: DashboardResponse["stocks"] }) {
           <div>
             <p className="text-2xl font-bold" data-testid="text-eligible-count">{eligibleCount}</p>
             <p className="text-xs text-muted-foreground">Trade Eligible</p>
+            <p className="text-[10px] text-muted-foreground/70 mt-0.5">
+              {eligibleCount > 0 ? "Short-term momentum setups" : "No setups currently"}
+            </p>
           </div>
         </CardContent>
       </Card>
@@ -76,6 +100,9 @@ function StatsCards({ stocks }: { stocks: DashboardResponse["stocks"] }) {
           <div>
             <p className="text-2xl font-bold" data-testid="text-watch-count">{watchCount}</p>
             <p className="text-xs text-muted-foreground">On Watch</p>
+            <p className="text-[10px] text-muted-foreground/70 mt-0.5">
+              {watchCount > 0 ? "Waiting for confirmation" : "All stocks decided"}
+            </p>
           </div>
         </CardContent>
       </Card>
@@ -87,6 +114,9 @@ function StatsCards({ stocks }: { stocks: DashboardResponse["stocks"] }) {
           <div>
             <p className="text-2xl font-bold" data-testid="text-strategic-avg">{avgStrategicScore}</p>
             <p className="text-xs text-muted-foreground">Avg Strategic</p>
+            <p className="text-[10px] text-muted-foreground/70 mt-0.5">
+              {getStrategicSubtitle(avgStrategicScore, marketRegime)}
+            </p>
           </div>
         </CardContent>
       </Card>
@@ -98,6 +128,9 @@ function StatsCards({ stocks }: { stocks: DashboardResponse["stocks"] }) {
           <div>
             <p className="text-2xl font-bold" data-testid="text-tactical-avg">{avgTacticalScore}</p>
             <p className="text-xs text-muted-foreground">Avg Tactical</p>
+            <p className="text-[10px] text-muted-foreground/70 mt-0.5">
+              {getTacticalSubtitle(avgTacticalScore, marketRegime)}
+            </p>
           </div>
         </CardContent>
       </Card>
@@ -169,7 +202,7 @@ export default function Dashboard() {
         ) : data ? (
           <>
             <MarketContextPanel />
-            <StatsCards stocks={data.stocks} />
+            <StatsCards stocks={data.stocks} marketRegime={data.marketRegime} />
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {data.stocks.map((stock) => (
                 <StockCard key={stock.symbol} stock={stock} />

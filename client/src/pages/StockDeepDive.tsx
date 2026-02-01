@@ -3,6 +3,7 @@ import { useParams } from "wouter";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { StockHeader } from "@/components/stock/StockHeader";
 import { StrategicGrowthPanel, TacticalSentinelPanel } from "@/components/stock/HorizonPanel";
+import { ConfidenceIndicator } from "@/components/stock/ConfidenceIndicator";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -75,6 +76,8 @@ export default function StockDeepDive() {
     enabled: !!symbol,
   });
 
+  const marketRegime = data?.marketRegime;
+
   return (
     <MainLayout>
       {error ? (
@@ -112,17 +115,31 @@ export default function StockDeepDive() {
             providersUsed={data.providersUsed}
           />
 
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Clock className="w-4 h-4" />
-            <span>
-              Evaluated at{" "}
-              {new Date(data.evaluation.evaluatedAt).toLocaleString()}
-            </span>
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Clock className="w-4 h-4" />
+              <span>
+                Evaluated at{" "}
+                {new Date(data.evaluation.evaluatedAt).toLocaleString()}
+              </span>
+            </div>
+            {data.dataConfidence && (
+              <ConfidenceIndicator 
+                confidence={data.dataConfidence} 
+                reasons={data.confidenceReasons}
+              />
+            )}
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <StrategicGrowthPanel evaluation={data.evaluation.strategicGrowth} />
-            <TacticalSentinelPanel evaluation={data.evaluation.tacticalSentinel} />
+            <StrategicGrowthPanel 
+              evaluation={data.evaluation.strategicGrowth} 
+              marketRegime={marketRegime}
+            />
+            <TacticalSentinelPanel 
+              evaluation={data.evaluation.tacticalSentinel}
+              marketRegime={marketRegime}
+            />
           </div>
         </div>
       ) : null}

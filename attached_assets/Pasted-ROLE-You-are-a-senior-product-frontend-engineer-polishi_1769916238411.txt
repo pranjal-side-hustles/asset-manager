@@ -1,0 +1,243 @@
+ROLE
+
+You are a senior product + frontend engineer polishing an existing, working stock-analysis system.
+
+DO NOT change any scoring, thresholds, or evaluation logic.
+Your job is to make decisions explainable, transparent, and confidence-aware.
+
+OBJECTIVES (PHASE 1 POLISH)
+
+Add:
+
+Clear “Why Trade / Why Watch / Why Avoid” explanations
+
+Market regime impact transparency
+
+Confidence signaling
+
+UX affordances to explore decisions
+
+Visual consistency & clarity
+
+This phase is about trust, not new features.
+
+NON-NEGOTIABLE RULES
+
+❌ Do NOT change evaluator logic
+
+❌ Do NOT change thresholds
+
+❌ Do NOT add new indicators
+
+❌ Do NOT refactor domain code
+
+Only presentation + explanation layers.
+
+1️⃣ PER-STOCK EXPLAINABILITY PANEL (CRITICAL)
+Where
+
+Each stock card (Strategic + Tactical sections)
+
+What to add
+
+A collapsible “Why?” section for each horizon.
+
+Strategic – “Why Watch / Reject”
+
+Show:
+
+Top positive factors (from positives[])
+
+Top risks (from risks[])
+
+Primary failure mode
+
+Market regime impact (explicit)
+
+Example UI copy:
+
+Why WATCH?
+• Strong fundamentals, but market regime is Risk-Off
+• Weekly trend intact, no clean breakout yet
+• Institutional activity neutral
+
+Main Risk:
+• Broad market below 200DMA
+
+Tactical – “Why Trade / Watch / Avoid”
+
+Show:
+
+Entry quality highlights
+
+Momentum / volume confirmation
+
+Immediate risks
+
+Event proximity (if available)
+
+Example:
+
+Why TRADE?
+• Strong short-term momentum
+• Relative strength vs SPY
+• No earnings in next 10 days
+
+Risk:
+• Market volatility elevated
+
+2️⃣ REGIME IMPACT BADGE (VERY IMPORTANT)
+Add a small badge next to each status
+
+Examples:
+
+🟡 “WATCH (Regime Headwind)”
+
+🟢 “TRADE (Despite Risk-Off)”
+
+🔴 “AVOID (Structure Broken)”
+
+This prevents users from thinking:
+
+“Why is everything yellow?”
+
+3️⃣ CONFIDENCE INDICATOR
+
+Use existing confidence metadata (do NOT invent new logic).
+
+Display:
+
+High / Medium / Low confidence
+
+Tooltip explaining:
+
+Data completeness
+
+Regime certainty
+
+Signal alignment
+
+Example:
+
+Confidence: Medium
+• Market regime mixed
+• Breadth estimated
+• All stock signals present
+
+4️⃣ DASHBOARD SUMMARY POLISH
+
+Enhance the top summary cards:
+
+Add:
+
+Short subtitle text under counts
+
+Example:
+
+Trade Eligible (6)
+Short-term momentum setups
+
+On Watch (8)
+Structurally strong, waiting for confirmation
+
+Avg Strategic (54)
+Cautious market environment
+
+Avg Tactical (66)
+Selective opportunities available
+
+This gives narrative context.
+
+5️⃣ VISUAL CONSISTENCY REFINEMENTS
+Status colors (keep exactly these semantics)
+
+🟢 Green → Trade / Eligible
+
+🟡 Yellow → Watch
+
+🔴 Red → Reject / Avoid
+
+Small improvements
+
+Progress bars should:
+
+Match status color
+
+Animate subtly on load
+
+Icons should be consistent across cards
+
+6️⃣ “VIEW REGIME ANALYSIS” EXPANDER
+
+You already show:
+
+“View regime analysis (3 factors)”
+
+Expand this to show:
+
+Index trend summary
+
+Breadth explanation
+
+Volatility explanation
+
+Plain-English conclusion
+
+Example:
+
+Market is Risk-Off because:
+• 3/4 indices below 200DMA
+• Only 40% of stocks above long-term trend
+• Volatility elevated
+
+Implication:
+• Tactical trades favored
+• Strategic patience required
+
+7️⃣ EMPTY-STATE & EDGE-CASE UX
+
+Handle cases gracefully:
+
+No Trade-Eligible stocks
+
+Low confidence market
+
+Missing data
+
+Never show:
+
+Blank sections
+
+“undefined”
+
+Raw numbers without explanation
+
+8️⃣ FINAL UX QUALITY BAR
+
+The app should feel like:
+
+“A professional decision system that explains itself.”
+
+A user should never ask:
+
+“Why is this Watch?”
+
+“Why is this Trade?”
+
+“Is this because of the market?”
+
+Because the UI answers it.
+
+FINAL VALIDATION CHECKLIST
+
+After this polish:
+
+Decisions are explainable
+
+Regime impact is visible
+
+Yellow ≠ confusing
+
+Users trust the system even when it says “wait”
+
+END OF PROMPT

@@ -12,10 +12,15 @@ export async function registerRoutes(
   
   app.get("/api/dashboard", async (req, res) => {
     try {
-      const stocks = await fetchDashboardStocks();
+      const [stocks, marketContext] = await Promise.all([
+        fetchDashboardStocks(),
+        getMarketContext(false),
+      ]);
       res.json({
         stocks,
         lastUpdated: Date.now(),
+        marketRegime: marketContext.context.regime,
+        marketConfidence: marketContext.context.confidence,
       });
     } catch (error) {
       logger.error("DATA_FETCH", "Error fetching dashboard data", { 

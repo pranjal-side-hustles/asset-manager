@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -10,7 +12,8 @@ import {
   BarChart3,
   Gauge,
   AlertTriangle,
-  RefreshCw
+  RefreshCw,
+  ChevronDown
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type {
@@ -206,6 +209,111 @@ function SectorHeatmap({ sectors }: { sectors: SectorState[] }) {
   );
 }
 
+function getRegimeImplication(regime: MarketContext["regime"]): string {
+  switch (regime) {
+    case "RISK_ON":
+      return "Both strategic and tactical positions favored. Trend following works well.";
+    case "RISK_OFF":
+      return "Tactical trades favored over strategic. Defensive positioning recommended.";
+    default:
+      return "Selectivity is key. Wait for clearer signals before committing.";
+  }
+}
+
+function getIndexSummary(indices: MarketContext["indices"]): string {
+  const aboveCount = [indices.spy, indices.qqq, indices.dia, indices.iwm].filter(i => i.above200DMA).length;
+  if (aboveCount >= 3) return `${aboveCount}/4 major indices above 200DMA`;
+  if (aboveCount >= 2) return `Only ${aboveCount}/4 indices above 200DMA`;
+  return `${aboveCount}/4 indices above 200DMA - bearish structure`;
+}
+
+function getBreadthSummary(breadth: BreadthData): string {
+  const pct = Math.round(breadth.pctAbove200DMA);
+  if (pct >= 60) return `${pct}% of stocks in uptrends - healthy participation`;
+  if (pct >= 40) return `${pct}% of stocks in uptrends - mixed breadth`;
+  return `Only ${pct}% of stocks in uptrends - narrow leadership`;
+}
+
+function getVolatilitySummary(volatility: MarketContext["volatility"]): string {
+  if (volatility.isElevated) return `VIX at ${volatility.vixLevel.toFixed(1)} - elevated fear, expect chop`;
+  return `VIX at ${volatility.vixLevel.toFixed(1)} - calm conditions for trend trades`;
+}
+
+function RegimeExplainer({ context }: { context: MarketContext }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  
+  const regimeColors: Record<string, string> = {
+    RISK_ON: "text-stock-eligible",
+    RISK_OFF: "text-stock-reject",
+    NEUTRAL: "text-stock-watch",
+  };
+  
+  return (
+    <div className="pt-3 border-t border-border/50" data-testid="section-regime-explainer">
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full flex items-center justify-between text-left group"
+        data-testid="button-regime-analysis"
+      >
+        <span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors">
+          View regime analysis ({context.regimeReasons.length} factors)
+        </span>
+        <ChevronDown 
+          className={cn(
+            "w-4 h-4 text-muted-foreground transition-transform duration-200",
+            isExpanded && "rotate-180"
+          )} 
+        />
+      </button>
+      
+      {isExpanded && (
+        <div className="mt-3 space-y-3" data-testid="section-regime-details">
+          <div className="p-3 rounded-lg bg-muted/50 space-y-2">
+            <p className="text-sm font-medium">
+              Market is <span className={regimeColors[context.regime]}>{context.regime.replace("_", " ")}</span> because:
+            </p>
+            <ul className="space-y-1 text-xs text-muted-foreground">
+              <li className="flex items-start gap-2">
+                <BarChart3 className="w-3 h-3 mt-0.5 shrink-0" />
+                {getIndexSummary(context.indices)}
+              </li>
+              <li className="flex items-start gap-2">
+                <Activity className="w-3 h-3 mt-0.5 shrink-0" />
+                {getBreadthSummary(context.breadth)}
+              </li>
+              <li className="flex items-start gap-2">
+                <Gauge className="w-3 h-3 mt-0.5 shrink-0" />
+                {getVolatilitySummary(context.volatility)}
+              </li>
+            </ul>
+          </div>
+          
+          <div className="p-3 rounded-lg border border-border/50">
+            <p className="text-xs font-medium mb-1">Implication:</p>
+            <p className="text-xs text-muted-foreground">
+              {getRegimeImplication(context.regime)}
+            </p>
+          </div>
+          
+          {context.regimeReasons.length > 0 && (
+            <div className="text-xs text-muted-foreground">
+              <p className="font-medium mb-1">Raw Scoring Factors:</p>
+              <ul className="space-y-0.5">
+                {context.regimeReasons.map((reason, i) => (
+                  <li key={i} className="flex items-start gap-1">
+                    <span className="text-muted-foreground/50">-</span>
+                    {reason}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function MarketContextSkeleton() {
   return (
     <Card>
@@ -288,23 +396,7 @@ export function MarketContextPanel() {
           </div>
         </div>
 
-        {context.regimeReasons.length > 1 && (
-          <div className="pt-3 border-t border-border/50">
-            <details className="text-xs">
-              <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
-                View regime analysis ({context.regimeReasons.length - 1} factors)
-              </summary>
-              <ul className="mt-2 space-y-1 text-muted-foreground">
-                {context.regimeReasons.slice(1).map((reason, i) => (
-                  <li key={i} className="flex items-start gap-1">
-                    <BarChart3 className="w-3 h-3 mt-0.5 shrink-0" />
-                    {reason}
-                  </li>
-                ))}
-              </ul>
-            </details>
-          </div>
-        )}
+        <RegimeExplainer context={context} />
       </CardContent>
     </Card>
   );

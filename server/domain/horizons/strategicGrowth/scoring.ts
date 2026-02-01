@@ -15,16 +15,6 @@ export function calculateStrategicScore(
   return Math.min(100, Math.max(0, totalScore));
 }
 
-export function determineStrategicStatus(score: number): StrategicGrowthStatus {
-  if (score >= STRATEGIC_THRESHOLDS.ELIGIBLE_MIN_SCORE) {
-    return "ELIGIBLE";
-  }
-  if (score >= STRATEGIC_THRESHOLDS.WATCH_MIN_SCORE) {
-    return "WATCH";
-  }
-  return "REJECT";
-}
-
 export function extractPositives(
   details: Record<string, EvaluationDetail>,
 ): string[] {
@@ -75,17 +65,17 @@ export function buildStrategicEvaluation(
   details: StrategicGrowthEvaluation["details"],
 ): StrategicGrowthEvaluation {
   const score = calculateStrategicScore(details);
-  const status = determineStrategicStatus(score);
   const positives = extractPositives(details);
   const risks = extractRisks(details);
   const failureMode = determineFailureMode(details);
 
   return {
     score,
-    status,
+    status: "WATCH", // placeholder only, evaluator overrides
     positives,
     risks,
     failureMode,
     details,
   };
+
 }

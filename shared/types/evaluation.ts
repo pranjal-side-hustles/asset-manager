@@ -19,6 +19,7 @@ export interface StockEvaluationResponse {
   confidenceReasons?: string[];
   warnings?: string[];
   providersUsed?: string[];
+  marketRegime?: "RISK_ON" | "RISK_OFF" | "NEUTRAL";
 }
 
 export interface DashboardStock {
@@ -36,4 +37,6 @@ export interface DashboardStock {
 export interface DashboardResponse {
   stocks: DashboardStock[];
   lastUpdated: number;
+  marketRegime?: "RISK_ON" | "RISK_OFF" | "NEUTRAL";
+  marketConfidence?: "HIGH" | "MEDIUM" | "LOW";
 }
