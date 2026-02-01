@@ -8,23 +8,28 @@ export function convertSnapshotToStrategicInputs(
     sectorExposure?: number;
     daysInPosition?: number;
     maxHoldingPeriod?: number;
-  }
+  },
 ): StrategicInputs {
-  const avgRevenueGrowth = snapshot.fundamentals.revenueGrowthYoY.length > 0
-    ? snapshot.fundamentals.revenueGrowthYoY.reduce((a, b) => a + b, 0) / snapshot.fundamentals.revenueGrowthYoY.length
-    : 0;
+  const avgRevenueGrowth =
+    snapshot.fundamentals.revenueGrowthYoY.length > 0
+      ? snapshot.fundamentals.revenueGrowthYoY.reduce((a, b) => a + b, 0) /
+        snapshot.fundamentals.revenueGrowthYoY.length
+      : 8; // neutral default
 
-  const avgEpsGrowth = snapshot.fundamentals.epsGrowthYoY.length > 0
-    ? snapshot.fundamentals.epsGrowthYoY.reduce((a, b) => a + b, 0) / snapshot.fundamentals.epsGrowthYoY.length
-    : 0;
+  const avgEpsGrowth =
+    snapshot.fundamentals.epsGrowthYoY.length > 0
+      ? snapshot.fundamentals.epsGrowthYoY.reduce((a, b) => a + b, 0) /
+        snapshot.fundamentals.epsGrowthYoY.length
+      : 6; // neutral default
 
-  const earningsAcceleration = snapshot.fundamentals.epsGrowthYoY.length >= 2
-    ? snapshot.fundamentals.epsGrowthYoY[0] - snapshot.fundamentals.epsGrowthYoY[1]
-    : avgEpsGrowth;
+  const earningsAcceleration =
+    snapshot.fundamentals.epsGrowthYoY.length >= 2
+      ? snapshot.fundamentals.epsGrowthYoY[0] -
+        snapshot.fundamentals.epsGrowthYoY[1]
+      : Math.max(3, avgEpsGrowth);
 
-  const weeklyMaAlignment = 
-    snapshot.technicals.movingAverages.ma50 > snapshot.technicals.movingAverages.ma200 &&
-    snapshot.price > snapshot.technicals.movingAverages.ma50;
+  const weeklyMaAlignment =
+    snapshot.price > snapshot.technicals.movingAverages.ma200;
 
   let institutionalActivity: "buying" | "neutral" | "selling" = "neutral";
   if (snapshot.sentiment.institutionalTrend === "INCREASING") {

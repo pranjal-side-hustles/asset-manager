@@ -9,17 +9,19 @@ export function convertSnapshotToTacticalInputs(
     daysToEarnings?: number;
     daysToExDividend?: number;
     hasUpcomingNews?: boolean;
-  }
+  },
 ): TacticalInputs {
-  const dailyMaAlignment = 
+  const dailyMaAlignment =
     snapshot.price > snapshot.technicals.movingAverages.ma20 &&
-    snapshot.technicals.movingAverages.ma20 > snapshot.technicals.movingAverages.ma50;
+    snapshot.technicals.movingAverages.ma20 >
+      snapshot.technicals.movingAverages.ma50;
 
   const hourlyMaAlignment = snapshot.technicals.dailyTrend === "UP";
 
-  const priceAboveVwap = snapshot.price > snapshot.technicals.movingAverages.ma20;
+  const priceAboveVwap =
+    snapshot.price > snapshot.technicals.movingAverages.ma20;
 
-  let momentumScore = snapshot.technicals.rsi;
+  let momentumScore = Math.max(45, snapshot.technicals.rsi);
   if (snapshot.technicals.dailyTrend === "UP") {
     momentumScore = Math.min(100, momentumScore + 10);
   } else if (snapshot.technicals.dailyTrend === "DOWN") {
@@ -34,15 +36,22 @@ export function convertSnapshotToTacticalInputs(
   }
 
   let socialSentiment: "bullish" | "neutral" | "bearish" = "neutral";
-  if (snapshot.sentiment.analystRating && snapshot.sentiment.analystRating > 3.5) {
+  if (
+    snapshot.sentiment.analystRating &&
+    snapshot.sentiment.analystRating > 3.5
+  ) {
     socialSentiment = "bullish";
-  } else if (snapshot.sentiment.analystRating && snapshot.sentiment.analystRating < 2.5) {
+  } else if (
+    snapshot.sentiment.analystRating &&
+    snapshot.sentiment.analystRating < 2.5
+  ) {
     socialSentiment = "bearish";
   }
 
-  const relativeStrength = snapshot.technicals.priceVsMA200 > 0
-    ? Math.min(100, 50 + snapshot.technicals.priceVsMA200)
-    : Math.max(0, 50 + snapshot.technicals.priceVsMA200);
+  const relativeStrength =
+    snapshot.technicals.priceVsMA200 > 0
+      ? Math.min(100, 50 + snapshot.technicals.priceVsMA200)
+      : Math.max(0, 50 + snapshot.technicals.priceVsMA200);
 
   return {
     dailyMaAlignment,
