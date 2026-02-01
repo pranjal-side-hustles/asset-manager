@@ -63,21 +63,25 @@ export async function fetchFMPPrice(symbol: string): Promise<FMPPriceData | null
   }
 
   try {
+    const quoteUrl = `${FMP_BASE_URL}/quote/${symbol}?apikey=${apiKey}`;
+    const profileUrl = `${FMP_BASE_URL}/profile/${symbol}?apikey=${apiKey}`;
+    
     const [quoteRes, profileRes] = await Promise.all([
-      fetch(`${FMP_BASE_URL}/quote/${symbol}?apikey=${apiKey}`),
-      fetch(`${FMP_BASE_URL}/profile/${symbol}?apikey=${apiKey}`)
+      fetch(quoteUrl),
+      fetch(profileUrl)
     ]);
 
-    if (!quoteRes.ok || !profileRes.ok) {
-      console.warn(`[FMP] Failed to fetch data for ${symbol}`);
+    if (!quoteRes.ok) {
+      const errorText = await quoteRes.text();
+      console.warn(`[FMP] Quote API failed for ${symbol}: ${quoteRes.status} - ${errorText.substring(0, 200)}`);
       return null;
     }
 
     const quoteData: FMPQuoteResponse[] = await quoteRes.json();
-    const profileData: FMPProfileResponse[] = await profileRes.json();
+    const profileData: FMPProfileResponse[] = profileRes.ok ? await profileRes.json() : [];
 
     if (!quoteData?.[0]) {
-      console.warn(`[FMP] No quote data for ${symbol}`);
+      console.warn(`[FMP] No quote data for ${symbol} - response was empty`);
       return null;
     }
 

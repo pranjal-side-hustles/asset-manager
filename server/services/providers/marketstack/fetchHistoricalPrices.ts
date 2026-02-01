@@ -1,4 +1,4 @@
-const MARKETSTACK_BASE_URL = "http://api.marketstack.com/v1";
+const MARKETSTACK_BASE_URL = "https://api.marketstack.com/v1";
 
 interface MarketstackEOD {
   open: number;

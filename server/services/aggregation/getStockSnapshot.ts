@@ -19,6 +19,7 @@ import { normalizeFinnhubSentiment, normalizeFinnhubOptions, normalizePutCallRat
 import { normalizeMarketstackHistorical } from "../normalization/normalizeHistorical";
 
 import { stockCache, CACHE_TTL } from "./cache";
+import { getMockSnapshot } from "./mockFallback";
 
 const DEFAULT_FUNDAMENTALS: StockFundamentals = {
   revenueGrowthYoY: [],
@@ -122,8 +123,12 @@ export async function getStockSnapshot(symbol: string): Promise<StockSnapshot | 
   else providersFailed.push("Marketstack-Historical");
 
   if (!fmpPrice) {
-    console.warn(`[Aggregator] No price data available for ${symbol}`);
-    return null;
+    console.warn(`[Aggregator] No price data available for ${symbol}, falling back to mock data`);
+    const mockSnapshot = getMockSnapshot(symbol);
+    if (mockSnapshot) {
+      stockCache.set(cacheKey, mockSnapshot, CACHE_TTL.SNAPSHOT);
+    }
+    return mockSnapshot;
   }
 
   const normalizedPrice = normalizeFMPPrice(fmpPrice);
