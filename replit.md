@@ -101,4 +101,18 @@ server/domain/ranking/relativeRankingEngine.ts  # rankStocks()
 
 Priorities: BUY | ACCUMULATE | PILOT | WATCH | BLOCKED
 
-All three Phase 2 engines are callable independently and NOT integrated into scoring yet.
+All three Phase 2 engines are now integrated into the dashboard API and UI:
+
+### Phase 2 UI Components
+
+- **CapitalPriorityBadge**: Displays capital priority (BUY/ACCUMULATE/PILOT/WATCH/BLOCKED) with semantic colors
+- **Phase2Explainer**: Collapsible panel showing sector ranking, regime explanation, portfolio constraints, and reasons
+- **StockCard**: Extended to show sector info, sector regime labels, and capital priority badges
+- **CapitalActionsCard**: Dashboard summary showing counts of stocks by capital priority
+
+### Data Flow
+
+1. `fetchDashboardStocks()` evaluates stocks using all three Phase 2 engines
+2. Sector data is derived from market context with fallback mapping for known symbols
+3. Results are returned with Phase 2 fields in the dashboard response
+4. UI displays differentiated capital priorities based on sector regimes and rankings
