@@ -120,7 +120,7 @@ export async function getEODPrice(symbol: string): Promise<EODPriceResult> {
   };
 }
 
-function computeTechnicalsFromOHLC(ohlc: OHLCData[], currentPrice: number): TechnicalIndicators {
+function computeTechnicalsFromOHLC(ohlc: (OHLCData | OHLCCandle)[], currentPrice: number): TechnicalIndicators {
   const closes = ohlc.map(c => c.close);
 
   const calcSMA = (period: number): number => {
@@ -211,9 +211,29 @@ export async function getMarketData(symbol: string): Promise<AggregatedMarketDat
   const providersFailed: string[] = [];
   const log = logger.withContext({ symbol: upperSymbol });
 
-  let quote: PriceQuote;
-  let ohlcCandles: OHLCCandle[];
-  let technicals: TechnicalIndicators;
+  let quote: PriceQuote = {
+    symbol: upperSymbol,
+    price: 0,
+    change: 0,
+    changePercent: 0,
+    open: 0,
+    high: 0,
+    low: 0,
+    previousClose: 0,
+    volume: 0,
+    timestamp: 0,
+  };
+  let ohlcCandles: OHLCCandle[] = [];
+  let technicals: TechnicalIndicators = {
+    rsi: 0,
+    sma20: 0,
+    sma50: 0,
+    sma200: 0,
+    ema20: 0,
+    ema50: 0,
+    atr: 0,
+    atrPercent: 0,
+  };
   let priceSource = "Unavailable";
   let eodDate = "";
   let dataCached = false;
