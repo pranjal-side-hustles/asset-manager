@@ -2,14 +2,24 @@ import { cn } from "@/lib/utils";
 import { TrendingUp, TrendingDown, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
-import type { Stock, StockQuote } from "@shared/types";
+import type { Stock, StockQuote, DataConfidence } from "@shared/types";
+import { DataConfidenceBadge } from "./DataConfidenceBadge";
 
 interface StockHeaderProps {
   stock: Stock;
   quote: StockQuote;
+  dataConfidence?: DataConfidence;
+  warnings?: string[];
+  providersUsed?: string[];
 }
 
-export function StockHeader({ stock, quote }: StockHeaderProps) {
+export function StockHeader({ 
+  stock, 
+  quote, 
+  dataConfidence, 
+  warnings, 
+  providersUsed 
+}: StockHeaderProps) {
   const isPositive = quote.change >= 0;
 
   return (
@@ -30,6 +40,13 @@ export function StockHeader({ stock, quote }: StockHeaderProps) {
             <span className="px-2 py-1 bg-muted rounded text-xs font-medium text-muted-foreground">
               {stock.sector}
             </span>
+            {dataConfidence && (
+              <DataConfidenceBadge 
+                confidence={dataConfidence} 
+                warnings={warnings} 
+                providersUsed={providersUsed} 
+              />
+            )}
           </div>
           <p className="text-lg text-muted-foreground" data-testid="text-company-name">
             {stock.companyName}

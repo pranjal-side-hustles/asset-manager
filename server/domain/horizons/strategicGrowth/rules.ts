@@ -26,7 +26,7 @@ function getStatus(score: number, maxScore: number): "pass" | "caution" | "fail"
 }
 
 export function evaluateRiskGuardrails(inputs: StrategicInputs): EvaluationDetail {
-  const maxScore = STRATEGIC_THRESHOLDS.RISK_GUARDRAILS_WEIGHT;
+  const maxScore = STRATEGIC_THRESHOLDS.RISK_GUARDRAILS_WEIGHT as number;
   let score = maxScore;
   const breakdown: string[] = [];
 

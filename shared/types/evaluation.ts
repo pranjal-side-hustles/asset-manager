@@ -1,5 +1,5 @@
 import type { StrategicGrowthEvaluation, TacticalSentinelEvaluation, StrategicGrowthStatus, TacticalSentinelStatus } from "./horizon";
-import type { Stock, StockQuote } from "./stock";
+import type { Stock, StockQuote, DataConfidence } from "./stock";
 
 export interface StockEvaluationResponse {
   stock: Stock;
@@ -9,6 +9,9 @@ export interface StockEvaluationResponse {
     tacticalSentinel: TacticalSentinelEvaluation;
     evaluatedAt: number;
   };
+  dataConfidence?: DataConfidence;
+  warnings?: string[];
+  providersUsed?: string[];
 }
 
 export interface DashboardStock {

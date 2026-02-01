@@ -104,7 +104,13 @@ export default function StockDeepDive() {
         <StockDeepDiveSkeleton />
       ) : data ? (
         <div className="space-y-8">
-          <StockHeader stock={data.stock} quote={data.quote} />
+          <StockHeader 
+            stock={data.stock} 
+            quote={data.quote} 
+            dataConfidence={data.dataConfidence}
+            warnings={data.warnings}
+            providersUsed={data.providersUsed}
+          />
 
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Clock className="w-4 h-4" />
