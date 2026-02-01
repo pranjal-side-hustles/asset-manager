@@ -159,6 +159,38 @@ server/domain/calibration.ts           # Calibration constants & label derivatio
 server/domain/risk/integrityAudit.ts   # Integrity gate utility
 ```
 
+## Provider Adapter Layer
+
+### Architecture
+The provider adapter layer abstracts data fetching with automatic fallback to ensure engine execution never blocks:
+
+```
+server/services/providers/adapter/
+├── types.ts              # MarketDataProvider interface
+├── twelveDataProvider.ts # Twelve Data API (OHLC, indicators)
+├── mockProvider.ts       # Fallback with realistic mock data
+├── providerRouter.ts     # Routing logic with fallback
+└── index.ts              # Exports
+```
+
+### Providers
+- **TwelveDataProvider**: Primary for OHLC candles, RSI, SMA (20/50/200), EMA, ATR
+- **MockProvider**: Always-available fallback with realistic stock data
+
+### Routing Logic
+1. If `TWELVE_DATA_API_KEY` is set → Use Twelve Data for price/technicals
+2. If Twelve Data fails → Fallback to MockProvider
+3. Fundamentals, sentiment, options → Always use MockProvider in dev
+
+### Key Design Decisions
+- Engine execution NEVER blocks due to API failures
+- MockProvider provides realistic data for all 9 tracked stocks
+- No retries - immediate fallback on failure
+- All data types have guaranteed fallback values
+
+### Environment Variables
+- `TWELVE_DATA_API_KEY`: Optional. If set, enables Twelve Data for real market data
+
 ## Recent Features
 
 ### Stock Search

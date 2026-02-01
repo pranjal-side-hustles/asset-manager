@@ -223,6 +223,40 @@ export async function getStockSnapshot(symbol: string): Promise<StockSnapshot | 
     return snapshot;
   } catch (error) {
     log.error("PROVIDER_FAILURE", `Failed to fetch stock data: ${error}`);
-    return null;
+    
+    const companyInfo = SYMBOL_COMPANY_MAP[upperSymbol] || {
+      name: `${upperSymbol} Inc.`,
+      sector: "Unknown",
+      industry: "Unknown",
+    };
+
+    const fallbackSnapshot: StockSnapshot = {
+      symbol: upperSymbol,
+      companyName: companyInfo.name,
+      price: 100,
+      change: 0,
+      changePercent: 0,
+      volume: 0,
+      marketCap: 0,
+      sector: companyInfo.sector,
+      industry: companyInfo.industry,
+      fundamentals: DEFAULT_FUNDAMENTALS,
+      technicals: DEFAULT_TECHNICALS,
+      sentiment: DEFAULT_SENTIMENT,
+      options: DEFAULT_OPTIONS,
+      historicalPrices: [],
+      meta: {
+        dataFreshness: new Date(),
+        providersUsed: [],
+        providersFailed: ["All-Providers"],
+        confidence: "LOW",
+        confidenceScore: 0,
+        confidenceReasons: ["Emergency fallback - all providers failed"],
+        warnings: ["Using emergency fallback data"],
+      },
+    };
+
+    stockCache.set(cacheKey, fallbackSnapshot, 30);
+    return fallbackSnapshot;
   }
 }
