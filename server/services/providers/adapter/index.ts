@@ -1,4 +1,13 @@
 export * from "./types";
-export * from "./providerRouter";
-export { TwelveDataProvider, twelveDataProvider } from "./twelveDataProvider";
-export { MockProvider, mockProvider } from "./mockProvider";
+export { 
+  getMarketData, 
+  getEODPrice,
+  isProviderAvailable,
+  clearAllCaches,
+  getProviderCacheStats,
+  mockProvider,
+  type AggregatedMarketData,
+  type EODPrice,
+  type EODPriceResult,
+} from "./providerRouter";
+export { MockProvider, mockProvider as mockDataProvider } from "./mockProvider";

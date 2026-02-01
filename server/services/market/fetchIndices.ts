@@ -1,6 +1,6 @@
 import { IndexState, TrendDirection, Momentum } from "../../../shared/types/marketContext";
 import { logger } from "../../infra/logging/logger";
-import { twelveDataProvider } from "../providers/adapter";
+import { fetchMarketstackEOD, isMarketstackAvailable } from "../providers/marketstack";
 
 interface IndexConfig {
   symbol: string;
@@ -19,51 +19,51 @@ async function fetchIndexQuote(config: IndexConfig): Promise<{
   change: number;
   changePercent: number;
   sma200: number;
-  timestamp: number;
+  date: string;
 } | null> {
-  if (!twelveDataProvider.isAvailable()) {
+  if (!isMarketstackAvailable()) {
     logger.withContext({ symbol: config.symbol }).providerFailure(
-      `TwelveData unavailable for index ${config.symbol}`
+      `Marketstack unavailable for index ${config.symbol}`
     );
     return null;
   }
 
   try {
-    const quoteResult = await twelveDataProvider.getQuote(config.symbol);
+    const result = await fetchMarketstackEOD(config.symbol);
     
-    if (!quoteResult.success || !quoteResult.data) {
+    if (!result.success || !result.data) {
       logger.withContext({ symbol: config.symbol }).warn(
         "PROVIDER_FAILURE",
-        `Failed to fetch index quote for ${config.symbol}`
+        `Failed to fetch index EOD for ${config.symbol}`
       );
       return null;
     }
 
-    const ohlcResult = await twelveDataProvider.getOHLC(config.symbol, "1day", 200);
-    let sma200 = 0;
+    const { eod, ohlc } = result.data;
     
-    if (ohlcResult.success && ohlcResult.data && ohlcResult.data.length >= 200) {
-      const closes = ohlcResult.data.map(c => c.close);
+    let sma200 = 0;
+    if (ohlc.length >= 200) {
+      const closes = ohlc.slice(0, 200).map(c => c.close);
       sma200 = closes.reduce((a, b) => a + b, 0) / closes.length;
     }
 
-    logger.withContext({ symbol: config.symbol }).dataFetch("Index quote from TwelveData", {
-      price: quoteResult.data.price,
-      source: "TwelveData",
-      timestamp: quoteResult.data.timestamp,
+    logger.withContext({ symbol: config.symbol }).dataFetch("Index EOD from Marketstack", {
+      price: eod.close,
+      date: eod.date,
+      cached: result.cached,
     });
 
     return {
-      price: quoteResult.data.price,
-      change: quoteResult.data.change,
-      changePercent: quoteResult.data.changePercent,
+      price: eod.close,
+      change: eod.change,
+      changePercent: eod.changePercent,
       sma200,
-      timestamp: quoteResult.data.timestamp,
+      date: eod.date,
     };
   } catch (error) {
     logger.withContext({ symbol: config.symbol }).error(
       "PROVIDER_FAILURE",
-      `Error fetching index quote for ${config.symbol}: ${error}`
+      `Error fetching index EOD for ${config.symbol}: ${error}`
     );
     return null;
   }
@@ -102,11 +102,11 @@ export async function fetchAllIndices(): Promise<{
       const quote = await fetchIndexQuote(config);
 
       if (!quote) {
-        providersFailed.push(`TwelveData-${config.symbol}`);
+        providersFailed.push(`Marketstack-${config.symbol}`);
         return null;
       }
 
-      providersUsed.push(`TwelveData-${config.symbol}`);
+      providersUsed.push(`Marketstack-${config.symbol}`);
 
       const trend = determineTrend(quote.price, quote.sma200, quote.changePercent);
       const momentum = determineMomentum(quote.changePercent, trend);
@@ -134,18 +134,18 @@ export async function fetchAllIndices(): Promise<{
   }
 
   const indices = {
-    spy: validResults.find((r) => r.key === "spy")?.state || createMockIndex("SPY", "S&P 500 ETF"),
-    qqq: validResults.find((r) => r.key === "qqq")?.state || createMockIndex("QQQ", "Nasdaq 100 ETF"),
-    dia: validResults.find((r) => r.key === "dia")?.state || createMockIndex("DIA", "Dow Jones ETF"),
-    iwm: validResults.find((r) => r.key === "iwm")?.state || createMockIndex("IWM", "Russell 2000 ETF"),
+    spy: validResults.find((r) => r.key === "spy")?.state || createDefaultIndex("SPY", "S&P 500 ETF"),
+    qqq: validResults.find((r) => r.key === "qqq")?.state || createDefaultIndex("QQQ", "Nasdaq 100 ETF"),
+    dia: validResults.find((r) => r.key === "dia")?.state || createDefaultIndex("DIA", "Dow Jones ETF"),
+    iwm: validResults.find((r) => r.key === "iwm")?.state || createDefaultIndex("IWM", "Russell 2000 ETF"),
   };
 
-  logger.dataFetch(`Fetched ${validResults.length}/4 indices from TwelveData`, { providersUsed, providersFailed });
+  logger.dataFetch(`Fetched ${validResults.length}/4 indices from Marketstack (EOD)`, { providersUsed, providersFailed });
 
   return { indices, providersUsed, providersFailed };
 }
 
-function createMockIndex(symbol: string, name: string): IndexState {
+function createDefaultIndex(symbol: string, name: string): IndexState {
   return {
     symbol,
     name,

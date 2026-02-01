@@ -1,4 +1,4 @@
-export { normalizeTwelveDataQuote, normalizeMarketstackQuote } from "./normalizePrice";
+export { normalizeEODQuote, normalizePriceQuote } from "./normalizePrice";
 export { normalizeFundamentals } from "./normalizeFinancials";
 export { normalizeTechnicals } from "./normalizeTechnicals";
 export { normalizeFinnhubSentiment, normalizeFinnhubOptions, normalizePutCallRatio } from "./normalizeSentiment";

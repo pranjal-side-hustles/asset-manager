@@ -340,6 +340,8 @@ export async function fetchDashboardStocks(): Promise<DashboardStock[]> {
       price: s.snapshot.price,
       change: s.snapshot.change,
       changePercent: s.snapshot.changePercent,
+      eodDate: s.snapshot.meta.eodDate,
+      priceAvailable: s.snapshot.meta.priceAvailable,
       strategicScore: s.strategicGrowth.score,
       strategicStatus: s.strategicGrowth.status,
       tacticalScore: s.tacticalSentinel.score,

@@ -1,6 +1,6 @@
 import { SectorState, SectorTrend } from "../../../shared/types/marketContext";
 import { logger } from "../../infra/logging/logger";
-import { twelveDataProvider } from "../providers/adapter";
+import { fetchMarketstackEOD, isMarketstackAvailable } from "../providers/marketstack";
 
 interface SectorConfig {
   name: string;
@@ -27,20 +27,20 @@ interface SectorQuote {
 }
 
 async function fetchSectorQuote(symbol: string): Promise<SectorQuote | null> {
-  if (!twelveDataProvider.isAvailable()) {
+  if (!isMarketstackAvailable()) {
     return null;
   }
 
   try {
-    const quoteResult = await twelveDataProvider.getQuote(symbol);
+    const result = await fetchMarketstackEOD(symbol);
     
-    if (!quoteResult.success || !quoteResult.data) {
+    if (!result.success || !result.data) {
       return null;
     }
 
     return {
-      price: quoteResult.data.price,
-      changePercent: quoteResult.data.changePercent,
+      price: result.data.eod.close,
+      changePercent: result.data.eod.changePercent,
     };
   } catch {
     return null;
@@ -71,11 +71,11 @@ export async function fetchSectorPerformance(spyChangePercent: number = 0): Prom
       const quote = await fetchSectorQuote(sector.symbol);
       
       if (!quote) {
-        providersFailed.push(`TwelveData-${sector.symbol}`);
+        providersFailed.push(`Marketstack-${sector.symbol}`);
         return null;
       }
 
-      providersUsed.push(`TwelveData-${sector.symbol}`);
+      providersUsed.push(`Marketstack-${sector.symbol}`);
       
       const relativeStrength = calculateRelativeStrength(quote.changePercent, spyChangePercent);
       const trend = determineSectorTrend(relativeStrength, quote.changePercent);
@@ -96,7 +96,7 @@ export async function fetchSectorPerformance(spyChangePercent: number = 0): Prom
     validSectors.sort((a, b) => b.relativeStrength - a.relativeStrength);
   }
 
-  logger.dataFetch(`Fetched ${validSectors.length}/${SECTOR_ETFS.length} sectors`, {
+  logger.dataFetch(`Fetched ${validSectors.length}/${SECTOR_ETFS.length} sectors (EOD)`, {
     leading: validSectors.filter((s) => s.trend === "LEADING").length,
     lagging: validSectors.filter((s) => s.trend === "LAGGING").length,
   });

@@ -204,6 +204,8 @@ export async function getStockSnapshot(symbol: string): Promise<StockSnapshot | 
 
       meta: {
         dataFreshness: new Date(),
+        eodDate: marketData.priceStatus.eodDate || undefined,
+        priceAvailable: quote.price > 0 && marketData.priceStatus.source !== "Unavailable",
         providersUsed: meta.providersUsed,
         providersFailed: meta.providersFailed,
         confidence: confidenceResult.level,
@@ -247,6 +249,7 @@ export async function getStockSnapshot(symbol: string): Promise<StockSnapshot | 
       historicalPrices: [],
       meta: {
         dataFreshness: new Date(),
+        priceAvailable: false,
         providersUsed: [],
         providersFailed: ["All-Providers"],
         confidence: "LOW",

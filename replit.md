@@ -54,18 +54,38 @@ The application is built with a modern web stack: **React + TypeScript + Vite** 
 
 ## External Dependencies
 
-The application integrates with several third-party financial data providers:
+The application uses Marketstack as the ONLY canonical data source for price data:
 
--   **Twelve Data** (Primary): The canonical source for all real-time price quotes, OHLC data, and technical indicators. Includes 60-second staleness checking with dev logging for price verification.
--   **Finnhub** (Secondary): Restricted to sentiment data, institutional ownership, and options data (open interest, put/call ratio). **NOT used for price quotes.**
--   **Marketstack** (Fallback): Used for historical OHLC (Open, High, Low, Close) price series as a backup data source.
+-   **Marketstack** (Primary & ONLY): The exclusive source for End-of-Day (EOD) price quotes and OHLC data. Uses `/v1/eod` endpoint exclusively. **No fallback to other providers for price data.**
+-   **Finnhub** (Secondary): Restricted to sentiment data, institutional ownership, options data (open interest, put/call ratio), and stock symbol search. **NOT used for price quotes.**
 
 **API Key Requirements**:
--   **TWELVE_DATA_API_KEY**: Required for real-time prices and market data. Free tier: 800 API credits/day.
--   **FINNHUB_API_KEY**: Required for sentiment and options data. Free tier available.
--   **MARKETSTACK_API_KEY**: Requires an HTTPS-enabled (paid tier) API key for production use.
+-   **MARKETSTACK_API_KEY**: Required for EOD prices and OHLC data. Paid tier (HTTPS-enabled) required. **100 calls/month quota**.
+-   **FINNHUB_API_KEY**: Required for sentiment, options data, and stock search. Free tier available.
 
-**Price Staleness Detection**: Prices older than 60 seconds are flagged as stale with detailed logging including provider, price, timestamp, and age in seconds.
+### Data Architecture
+
+**Per-Day Caching Strategy**:
+- Cache key format: `${symbol}_${date}` where date is the trading date
+- Maximum one API call per symbol per trading day
+- Strict quota protection for 100 calls/month limit
+- Cache entries include EOD data and 250 days of OHLC history
+
+**Local Technical Indicator Calculation**:
+All technical indicators are computed locally from OHLC data, NOT from external API calls:
+- SMA (20, 50, 200): Simple Moving Averages
+- EMA (20, 50): Exponential Moving Averages  
+- RSI (14): Relative Strength Index
+- ATR (14): Average True Range
+
+**Fail-Safe Behavior**:
+- If Marketstack fails (quota exceeded, API error), UI displays "Price unavailable"
+- No fallback to other providers for price data
+- All other data (sentiment, options) uses mock fallback if Finnhub fails
+
+**UI Price Display**:
+- When price available: Shows price with "Last Close (MMM DD, YYYY)" format
+- When unavailable: Shows "Price unavailable" with alert icon
 
 ## Phase 2 Engines (Read-Only Intelligence)
 
@@ -164,29 +184,35 @@ server/domain/risk/integrityAudit.ts   # Integrity gate utility
 ## Provider Adapter Layer
 
 ### Architecture
-The provider adapter layer abstracts data fetching with automatic fallback to ensure engine execution never blocks:
+The provider adapter layer abstracts data fetching with Marketstack as the exclusive EOD price source:
 
 ```
 server/services/providers/adapter/
 ├── types.ts              # MarketDataProvider interface
-├── twelveDataProvider.ts # Twelve Data API (quotes, OHLC, indicators)
-├── mockProvider.ts       # Fallback with realistic mock data
-├── providerRouter.ts     # Routing logic with staleness checking
+├── providerRouter.ts     # Routing logic with per-day caching
+├── mockProvider.ts       # Fallback with realistic mock data (non-price)
 └── index.ts              # Exports
+
+server/services/providers/marketstack/
+├── marketstackEODProvider.ts  # Marketstack EOD API integration
+└── index.ts                   # Exports
 ```
 
 ### Core Functions
-- **getCurrentPrice(symbol)**: Returns canonical price with staleness detection (60s threshold)
-- **getMarketData(symbol)**: Aggregates quotes, OHLC, technicals with priceStatus metadata
+- **getMarketData(symbol)**: Aggregates EOD quotes, OHLC, locally-computed technicals with priceStatus metadata
+- **priceStatus**: Tracks source ("Marketstack-EOD" or "Unavailable") and eodDate
 
 ### Providers
-- **TwelveDataProvider**: Canonical source for quotes, OHLC candles, RSI, SMA (20/50/200), EMA, ATR
+- **MarketstackEODProvider**: ONLY source for EOD prices and OHLC data (per-day caching)
+- **Local-Technicals**: All indicators (SMA, EMA, RSI, ATR) computed locally from OHLC
 - **Finnhub**: Sentiment, institutional ownership, options only (NO price quotes)
-- **MockProvider**: Always-available fallback with realistic stock data
+- **MockProvider**: Fallback for non-price data when Finnhub fails
 
 ### Routing Logic
-1. If `TWELVE_DATA_API_KEY` is set → Use Twelve Data for price/technicals
-2. If Twelve Data fails → Mark price as "Unavailable", use fallback for OHLC
+1. Always attempt Marketstack for EOD price + OHLC data
+2. If Marketstack fails → Mark priceStatus.source as "Unavailable", price = 0
+3. Compute all technicals locally from OHLC data (no external API calls)
+4. Use mock fallback for sentiment/options if Finnhub fails
 3. Staleness check: Prices >60 seconds old are flagged with detailed logging
 4. Finnhub: ONLY for sentiment, institutional, options data
 
