@@ -1,6 +1,9 @@
 import { logger } from "../../../infra/logging/logger";
+import * as fs from "fs";
+import * as path from "path";
 
 const MARKETSTACK_BASE_URL = "https://api.marketstack.com/v1";
+const CACHE_DIR = path.join(process.cwd(), ".cache", "marketstack");
 
 interface MarketstackEOD {
   open: number;
@@ -73,7 +76,13 @@ interface CacheEntry {
   fetchedAt: number;
 }
 
-const eodCache = new Map<string, CacheEntry>();
+const memoryCache = new Map<string, CacheEntry>();
+
+function ensureCacheDir(): void {
+  if (!fs.existsSync(CACHE_DIR)) {
+    fs.mkdirSync(CACHE_DIR, { recursive: true });
+  }
+}
 
 function getTradingDate(): string {
   const now = new Date();
@@ -92,14 +101,30 @@ function getCacheKey(symbol: string, date: string): string {
   return `${symbol.toUpperCase()}_${date}`;
 }
 
+function getCacheFilePath(symbol: string, date: string): string {
+  return path.join(CACHE_DIR, `${symbol.toUpperCase()}_${date}.json`);
+}
+
 function getFromCache(symbol: string): CacheEntry | null {
   const todayDate = getTradingDate();
   const cacheKey = getCacheKey(symbol, todayDate);
-  const entry = eodCache.get(cacheKey);
   
-  if (entry) {
-    logger.withContext({ symbol }).info("CACHE_HIT", `Using cached EOD data for ${symbol} (${entry.cacheDate})`);
-    return entry;
+  const memEntry = memoryCache.get(cacheKey);
+  if (memEntry) {
+    logger.withContext({ symbol }).info("CACHE_HIT", `Using cached EOD data for ${symbol} (${memEntry.cacheDate})`);
+    return memEntry;
+  }
+  
+  const filePath = getCacheFilePath(symbol, todayDate);
+  if (fs.existsSync(filePath)) {
+    try {
+      const data = JSON.parse(fs.readFileSync(filePath, "utf-8")) as CacheEntry;
+      memoryCache.set(cacheKey, data);
+      logger.withContext({ symbol }).info("CACHE_HIT", `Loaded persisted EOD data for ${symbol} (${data.cacheDate})`);
+      return data;
+    } catch (e) {
+      logger.withContext({ symbol }).warn("CACHE_MISS", `Failed to read cache file for ${symbol}`);
+    }
   }
   
   return null;
@@ -109,24 +134,43 @@ function saveToCache(symbol: string, data: { eod: EODData; ohlc: OHLCData[] }): 
   const todayDate = getTradingDate();
   const cacheKey = getCacheKey(symbol, todayDate);
   
-  eodCache.set(cacheKey, {
+  const entry: CacheEntry = {
     data,
     cacheDate: todayDate,
     symbol: symbol.toUpperCase(),
     fetchedAt: Date.now(),
-  });
+  };
   
-  logger.withContext({ symbol }).info("DATA_FETCH", `Cached EOD data for ${symbol} (${todayDate})`);
+  memoryCache.set(cacheKey, entry);
+  
+  try {
+    ensureCacheDir();
+    const filePath = getCacheFilePath(symbol, todayDate);
+    fs.writeFileSync(filePath, JSON.stringify(entry), "utf-8");
+    logger.withContext({ symbol }).info("DATA_FETCH", `Persisted EOD data for ${symbol} (${todayDate})`);
+  } catch (e) {
+    logger.withContext({ symbol }).warn("DATA_FETCH", `Failed to persist cache for ${symbol}`);
+  }
 }
 
 export function clearCache(): void {
-  eodCache.clear();
+  memoryCache.clear();
+  try {
+    if (fs.existsSync(CACHE_DIR)) {
+      const files = fs.readdirSync(CACHE_DIR);
+      for (const file of files) {
+        fs.unlinkSync(path.join(CACHE_DIR, file));
+      }
+    }
+  } catch (e) {
+    logger.warn("DATA_FETCH", "Failed to clear persistent cache files");
+  }
   logger.info("DATA_FETCH", "Marketstack EOD cache cleared");
 }
 
 export function getCacheStats(): { entries: number; symbols: string[] } {
-  const symbols = Array.from(eodCache.values()).map(e => e.symbol);
-  return { entries: eodCache.size, symbols };
+  const symbols = Array.from(memoryCache.values()).map(e => e.symbol);
+  return { entries: memoryCache.size, symbols };
 }
 
 export function isMarketstackAvailable(): boolean {

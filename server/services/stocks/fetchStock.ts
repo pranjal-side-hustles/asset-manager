@@ -237,12 +237,21 @@ function deriveSectorInputs(
 }
 
 export async function fetchDashboardStocks(): Promise<DashboardStock[]> {
-  const [results, marketContextSnapshot] = await Promise.all([
-    Promise.allSettled(
-      TRACKED_SYMBOLS.map((symbol) => getStockSnapshot(symbol)),
-    ),
-    getMarketContext(),
-  ]);
+  // PRIORITY: Fetch stocks FIRST before market context
+  // With 100 calls/month quota, stocks take priority over indices/sectors
+  // Fetch stocks SEQUENTIALLY to avoid quota race conditions
+  const results: PromiseSettledResult<StockSnapshot | null>[] = [];
+  for (const symbol of TRACKED_SYMBOLS) {
+    try {
+      const snapshot = await getStockSnapshot(symbol);
+      results.push({ status: "fulfilled", value: snapshot });
+    } catch (error) {
+      results.push({ status: "rejected", reason: error });
+    }
+  }
+  
+  // Fetch market context AFTER stocks (indices/sectors are lower priority)
+  const marketContextSnapshot = await getMarketContext();
 
   const marketContext = marketContextSnapshot.context;
   const portfolio = getMockPortfolioSnapshot();
