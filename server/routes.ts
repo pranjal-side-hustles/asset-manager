@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { fetchStockEvaluation, fetchDashboardStocks } from "./services/stocks/fetchStock";
+import { searchStocks } from "./services/stocks/searchStocks";
 import { logger, providerGuard, refreshManager } from "./infra";
 import { ENGINE_VERSIONS } from "./domain/engineMeta";
 import { getMarketContext } from "./domain/marketContext/marketContextEngine";
@@ -27,6 +28,25 @@ export async function registerRoutes(
         error: error instanceof Error ? error.message : "Unknown error" 
       });
       res.status(500).json({ error: "Failed to fetch dashboard data" });
+    }
+  });
+
+  app.get("/api/stocks/search", async (req, res) => {
+    try {
+      const query = req.query.q;
+      
+      if (!query || typeof query !== "string") {
+        res.json({ results: [] });
+        return;
+      }
+      
+      const results = await searchStocks(query);
+      res.json({ results });
+    } catch (error) {
+      logger.error("DATA_FETCH", "Error searching stocks", {
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+      res.status(500).json({ error: "Failed to search stocks" });
     }
   });
 
