@@ -141,6 +141,9 @@ For the app to load live data on Vercel, add these **Environment Variables** in 
 
 After saving, **redeploy** the project (Deployments → ⋮ → Redeploy) so the new variables are applied.
 
+**If you see "Failed to Load Data" or "Market data unavailable"**  
+The app now returns a friendly warning instead of a hard error when API keys are missing or the data fetch fails. Add `FINNHUB_API_KEY`, `MARKETSTACK_API_KEY`, and `FMP_API_KEY` in Vercel → Settings → Environment Variables, then redeploy. If the first load times out (Vercel serverless 10s limit), retry; the dashboard may still load with a warning.
+
 ---
 
 ## 🚂 Railway: Deploy

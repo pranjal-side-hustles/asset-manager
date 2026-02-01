@@ -53,4 +53,6 @@ export interface DashboardResponse {
   lastUpdated: number;
   marketRegime?: "RISK_ON" | "RISK_OFF" | "NEUTRAL";
   marketConfidence?: "HIGH" | "MEDIUM" | "LOW";
+  /** Shown when API keys are missing or data fetch failed; app still loads. */
+  dataWarning?: string;
 }

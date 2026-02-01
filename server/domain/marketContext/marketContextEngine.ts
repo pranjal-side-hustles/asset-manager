@@ -13,6 +13,37 @@ let cachedContext: MarketContextSnapshot | null = null;
 let cacheTimestamp: number = 0;
 const CACHE_TTL_MS = 5 * 60 * 1000;
 
+const defaultIndices = {
+  spy: { symbol: "SPY", name: "S&P 500 ETF", price: 0, change: 0, changePercent: 0, trend: "SIDEWAYS" as const, above200DMA: true, momentum: "NEUTRAL" as const, ma200: 0 },
+  qqq: { symbol: "QQQ", name: "Nasdaq 100 ETF", price: 0, change: 0, changePercent: 0, trend: "SIDEWAYS" as const, above200DMA: true, momentum: "NEUTRAL" as const, ma200: 0 },
+  dia: { symbol: "DIA", name: "Dow Jones ETF", price: 0, change: 0, changePercent: 0, trend: "SIDEWAYS" as const, above200DMA: true, momentum: "NEUTRAL" as const, ma200: 0 },
+  iwm: { symbol: "IWM", name: "Russell 2000 ETF", price: 0, change: 0, changePercent: 0, trend: "SIDEWAYS" as const, above200DMA: true, momentum: "NEUTRAL" as const, ma200: 0 },
+};
+
+/** Fallback when market context fetch fails (e.g. missing API keys, timeout). */
+export function getDefaultMarketContextSnapshot(reason?: string): MarketContextSnapshot {
+  const context: MarketContext = {
+    regime: "NEUTRAL",
+    regimeReasons: reason ? [reason] : ["Market data unavailable – check API keys in Vercel/Railway env"],
+    confidence: "LOW",
+    indices: defaultIndices,
+    breadth: { pctAbove200DMA: 50, advanceDeclineRatio: 1, newHighsLowsRatio: 1, health: "NEUTRAL" },
+    sectors: createDefaultSectors(),
+    volatility: { vixLevel: 18, vixTrend: "SIDEWAYS", isElevated: false },
+    evaluatedAt: new Date(),
+    dataFreshness: new Date(),
+  };
+  return {
+    context,
+    meta: {
+      providersUsed: [],
+      providersFailed: ["Finnhub", "Marketstack", "FMP"],
+      warnings: [reason || "Market context unavailable. Set FINNHUB_API_KEY, MARKETSTACK_API_KEY, FMP_API_KEY in Environment Variables."],
+      cacheHit: false,
+    },
+  };
+}
+
 export async function getMarketContext(forceRefresh = false): Promise<MarketContextSnapshot> {
   const now = Date.now();
   
@@ -30,6 +61,19 @@ export async function getMarketContext(forceRefresh = false): Promise<MarketCont
 
   logger.cacheMiss("Fetching fresh market context");
 
+  try {
+    return await getMarketContextInternal(now);
+  } catch (error) {
+    logger.error("DATA_FETCH", "Market context fetch failed", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return getDefaultMarketContextSnapshot(
+      error instanceof Error ? error.message : "Market data fetch failed"
+    );
+  }
+}
+
+async function getMarketContextInternal(now: number): Promise<MarketContextSnapshot> {
   const providersUsed: string[] = [];
   const providersFailed: string[] = [];
   const warnings: string[] = [];
@@ -46,12 +90,7 @@ export async function getMarketContext(forceRefresh = false): Promise<MarketCont
     warnings.push("Index data unavailable - using defaults");
   }
 
-  const indices = indicesResult.indices || {
-    spy: { symbol: "SPY", name: "S&P 500 ETF", price: 0, change: 0, changePercent: 0, trend: "SIDEWAYS" as const, above200DMA: true, momentum: "NEUTRAL" as const, ma200: 0 },
-    qqq: { symbol: "QQQ", name: "Nasdaq 100 ETF", price: 0, change: 0, changePercent: 0, trend: "SIDEWAYS" as const, above200DMA: true, momentum: "NEUTRAL" as const, ma200: 0 },
-    dia: { symbol: "DIA", name: "Dow Jones ETF", price: 0, change: 0, changePercent: 0, trend: "SIDEWAYS" as const, above200DMA: true, momentum: "NEUTRAL" as const, ma200: 0 },
-    iwm: { symbol: "IWM", name: "Russell 2000 ETF", price: 0, change: 0, changePercent: 0, trend: "SIDEWAYS" as const, above200DMA: true, momentum: "NEUTRAL" as const, ma200: 0 },
-  };
+  const indices = indicesResult.indices || defaultIndices;
 
   const breadthResult = await fetchMarketBreadth({
     spy: indices.spy.changePercent,
