@@ -37,10 +37,10 @@ export function StockCard({ stock }: StockCardProps) {
   return (
     <Link href={`/stocks/${stock.symbol}`}>
       <Card
-        className="hover-elevate cursor-pointer transition-all duration-200 group overflow-visible"
+        className="hover-elevate cursor-pointer transition-all duration-200 group overflow-visible h-full"
         data-testid={`card-stock-${stock.symbol.toLowerCase()}`}
       >
-        <CardContent className="p-5">
+        <CardContent className="p-5 h-full flex flex-col">
           <div className="flex items-start justify-between gap-4 mb-4">
             <div className="space-y-1">
               <div className="flex items-center gap-2">
@@ -55,26 +55,32 @@ export function StockCard({ stock }: StockCardProps) {
               <p className="text-sm text-muted-foreground line-clamp-1">
                 {stock.companyName}
               </p>
-              {stock.sector && stock.sector !== "Unknown" && (
-                <p className="text-xs text-muted-foreground/70">
-                  {stock.sector}
-                  {stock.sectorRegime && (
-                    <span className={cn(
-                      "ml-1",
-                      stock.sectorRegime === "FAVORED" ? "text-stock-eligible" :
-                      stock.sectorRegime === "AVOID" ? "text-stock-reject" :
-                      "text-stock-watch"
-                    )}>
-                      ({stock.sectorRegime})
-                    </span>
-                  )}
-                </p>
-              )}
-              {stock.portfolioAction && stock.portfolioAction !== "ALLOW" && (
-                <p className="text-xs text-stock-watch">
-                  Portfolio: {stock.portfolioAction}
-                </p>
-              )}
+              <p className="text-xs text-muted-foreground/70 min-h-[16px]">
+                {stock.sector && stock.sector !== "Unknown" ? (
+                  <>
+                    {stock.sector}
+                    {stock.sectorRegime && (
+                      <span className={cn(
+                        "ml-1",
+                        stock.sectorRegime === "FAVORED" ? "text-stock-eligible" :
+                        stock.sectorRegime === "AVOID" ? "text-stock-reject" :
+                        "text-stock-watch"
+                      )}>
+                        ({stock.sectorRegime})
+                      </span>
+                    )}
+                  </>
+                ) : (
+                  <span className="invisible">Sector</span>
+                )}
+              </p>
+              <p className="text-xs min-h-[16px]">
+                {stock.portfolioAction && stock.portfolioAction !== "ALLOW" ? (
+                  <span className="text-stock-watch">Portfolio: {stock.portfolioAction}</span>
+                ) : (
+                  <span className="invisible">Portfolio</span>
+                )}
+              </p>
             </div>
             <div className="text-right">
               <p className="text-lg font-semibold">
@@ -102,9 +108,9 @@ export function StockCard({ stock }: StockCardProps) {
             </div>
           </div>
 
-          {stock.horizonLabel && (
-            <div className="flex items-center gap-1.5 mb-3" data-testid={`horizon-label-container-${stock.symbol.toLowerCase()}`}>
-              {(() => {
+          <div className="flex items-center gap-1.5 mb-3 min-h-[20px]" data-testid={`horizon-label-container-${stock.symbol.toLowerCase()}`}>
+            {stock.horizonLabel ? (
+              (() => {
                 const { color, icon: Icon } = getHorizonLabelStyle(stock.horizonLabel);
                 return (
                   <>
@@ -114,20 +120,24 @@ export function StockCard({ stock }: StockCardProps) {
                     </span>
                   </>
                 );
-              })()}
-              {stock.integrityFlags && stock.integrityFlags.length > 0 && (
-                <Badge variant="outline" className="ml-auto text-[10px] px-1.5 py-0 h-5 border-stock-watch text-stock-watch" data-testid={`badge-event-flag-${stock.symbol.toLowerCase()}`}>
-                  <AlertTriangle className="w-3 h-3 mr-0.5" />
-                  Event
-                </Badge>
-              )}
-            </div>
-          )}
+              })()
+            ) : (
+              <span className="invisible text-xs">Placeholder</span>
+            )}
+            {stock.integrityFlags && stock.integrityFlags.length > 0 ? (
+              <Badge variant="outline" className="ml-auto text-[10px] px-1.5 py-0 h-5 border-stock-watch text-stock-watch" data-testid={`badge-event-flag-${stock.symbol.toLowerCase()}`}>
+                <AlertTriangle className="w-3 h-3 mr-0.5" />
+                Event
+              </Badge>
+            ) : (
+              <span className="ml-auto invisible h-5 w-12" />
+            )}
+          </div>
           
-          <div className="grid grid-cols-2 gap-4 pt-4 border-t border-border/50">
+          <div className="grid grid-cols-2 gap-4 pt-4 border-t border-border/50 flex-1">
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-xs text-muted-foreground">Strategic (WHY)</span>
+                <span className="text-xs text-muted-foreground">Strategic</span>
                 <StatusBadge
                   status={stock.strategicStatus}
                   size="sm"
@@ -160,7 +170,7 @@ export function StockCard({ stock }: StockCardProps) {
 
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-xs text-muted-foreground">Tactical (WHEN)</span>
+                <span className="text-xs text-muted-foreground">Tactical</span>
                 <StatusBadge
                   status={stock.tacticalStatus}
                   size="sm"

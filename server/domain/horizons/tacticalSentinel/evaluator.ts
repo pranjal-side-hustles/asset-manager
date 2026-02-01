@@ -52,10 +52,32 @@ function applyRegimeAdjustment(
   return { adjustedScore, adjustment };
 }
 
+export type SectorRegimeType = "FAVORED" | "NEUTRAL" | "AVOID";
+
+function applySectorPenalty(
+  score: number,
+  sectorRegime?: SectorRegimeType
+): { adjustedScore: number; sectorPenalty: number } {
+  if (!sectorRegime || sectorRegime === "FAVORED") {
+    return { adjustedScore: score, sectorPenalty: 0 };
+  }
+  
+  let penalty = 0;
+  if (sectorRegime === "AVOID") {
+    penalty = -6;
+  } else if (sectorRegime === "NEUTRAL") {
+    penalty = -2;
+  }
+  
+  const adjustedScore = Math.max(0, Math.min(100, score + penalty));
+  return { adjustedScore, sectorPenalty: penalty };
+}
+
 export function evaluateTacticalSentinel(
   inputs: TacticalInputs,
   symbol?: string,
-  marketContext?: MarketContext
+  marketContext?: MarketContext,
+  sectorRegime?: SectorRegimeType
 ): TacticalSentinelResult {
   const startTime = Date.now();
   const log = logger.withContext({ 
@@ -86,21 +108,30 @@ export function evaluateTacticalSentinel(
     marketContext
   );
   
-  const adjustedScore = Math.max(0, Math.min(100, regimeAdjustedScore + integrityResult.tacticalPenalty));
+  const { adjustedScore: sectorAdjustedScore, sectorPenalty } = applySectorPenalty(
+    regimeAdjustedScore,
+    sectorRegime
+  );
+  
+  const adjustedScore = Math.max(0, Math.min(100, sectorAdjustedScore + integrityResult.tacticalPenalty));
 
   const adjustedStatus = adjustedScore >= 70 ? "TRADE" : adjustedScore >= 50 ? "WATCH" : "AVOID";
 
   const meta = createEngineMetadata("tacticalSentinel");
   const duration = Date.now() - startTime;
   
+  const totalAdjustment = adjustment + sectorPenalty + integrityResult.tacticalPenalty;
+  
   log.engineEvaluation(
-    `Evaluation complete: score=${adjustedScore}, status=${adjustedStatus}${adjustment !== 0 ? `, regime adjustment: ${adjustment > 0 ? "+" : ""}${adjustment}` : ""}`,
+    `Evaluation complete: score=${adjustedScore}, status=${adjustedStatus}${totalAdjustment !== 0 ? `, total adjustment: ${totalAdjustment > 0 ? "+" : ""}${totalAdjustment}` : ""}`,
     {
       score: adjustedScore,
       baseScore: evaluation.score,
       status: adjustedStatus,
       regimeAdjustment: adjustment,
+      sectorPenalty,
       regime: marketContext?.regime,
+      sectorRegime,
       durationMs: duration,
     }
   );
@@ -111,7 +142,7 @@ export function evaluateTacticalSentinel(
     status: adjustedStatus as "TRADE" | "WATCH" | "AVOID",
     integrityFlags: integrityResult.riskFlags.length > 0 ? integrityResult.riskFlags : undefined,
     meta,
-    regimeAdjustment: adjustment + integrityResult.tacticalPenalty,
+    regimeAdjustment: totalAdjustment,
   };
 }
 

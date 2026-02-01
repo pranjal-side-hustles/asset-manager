@@ -179,10 +179,10 @@ export function evaluateEventProximity(inputs: TacticalInputs): EvaluationDetail
   let score = maxScore;
   const breakdown: string[] = [];
 
-  if (inputs.daysToEarnings < 5) {
-    score -= 7;
-    breakdown.push(`Earnings in ${inputs.daysToEarnings} days - high event risk`);
-  } else if (inputs.daysToEarnings < 14) {
+  if (inputs.daysToEarnings < 3) {
+    score -= 8;
+    breakdown.push(`Earnings in ${inputs.daysToEarnings} days - high binary risk`);
+  } else if (inputs.daysToEarnings <= 7) {
     score -= 3;
     breakdown.push(`Earnings approaching: ${inputs.daysToEarnings} days`);
   } else {
@@ -190,12 +190,12 @@ export function evaluateEventProximity(inputs: TacticalInputs): EvaluationDetail
   }
 
   if (inputs.daysToExDividend < 3) {
-    score -= 3;
+    score -= 2;
     breakdown.push(`Ex-dividend in ${inputs.daysToExDividend} days`);
   }
 
   if (inputs.hasUpcomingNews) {
-    score -= 3;
+    score -= 2;
     breakdown.push("Pending news catalyst");
   } else {
     breakdown.push("No major news expected");

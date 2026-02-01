@@ -123,6 +123,13 @@ export async function fetchStockEvaluation(
   const strategicInputs = convertSnapshotToStrategicInputs(snapshot);
   const tacticalInputs = convertSnapshotToTacticalInputs(snapshot);
 
+  // Derive sector and regime for tactical evaluation
+  const sector = stock.sector && stock.sector !== "Unknown" 
+    ? stock.sector 
+    : (SYMBOL_SECTOR_MAP[symbol] ?? "Unknown");
+  const sectorInputs = deriveSectorInputs(sector, marketContext);
+  const sectorResult = evaluateSectorRegime(sector, sectorInputs);
+
   const strategicGrowth = evaluateStrategicGrowth(
     strategicInputs,
     symbol,
@@ -132,6 +139,7 @@ export async function fetchStockEvaluation(
     tacticalInputs,
     symbol,
     marketContext,
+    sectorResult.regime,
   );
 
   const horizonLabel = deriveHorizonLabel(strategicGrowth.status, tacticalSentinel.status);
@@ -264,6 +272,10 @@ export async function fetchDashboardStocks(): Promise<DashboardStock[]> {
       const strategicInputs = convertSnapshotToStrategicInputs(snapshot);
       const tacticalInputs = convertSnapshotToTacticalInputs(snapshot);
 
+      // Phase 2: Sector regime evaluation (computed first to pass to tactical evaluator)
+      const sectorInputs = deriveSectorInputs(sector, marketContext);
+      const sectorResult = evaluateSectorRegime(sector, sectorInputs);
+
       const strategicGrowth = evaluateStrategicGrowth(
         strategicInputs,
         symbol,
@@ -273,11 +285,8 @@ export async function fetchDashboardStocks(): Promise<DashboardStock[]> {
         tacticalInputs,
         symbol,
         marketContext,
+        sectorResult.regime,
       );
-
-      // Phase 2: Sector regime evaluation
-      const sectorInputs = deriveSectorInputs(sector, marketContext);
-      const sectorResult = evaluateSectorRegime(sector, sectorInputs);
 
       // Phase 2: Portfolio constraints
       const constraintResult = evaluatePortfolioConstraints(portfolio, {

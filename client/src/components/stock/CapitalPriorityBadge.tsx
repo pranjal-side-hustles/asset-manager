@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { AlertTriangle } from "lucide-react";
 
 interface Props {
   priority: "BUY" | "ACCUMULATE" | "PILOT" | "WATCH" | "BLOCKED";
@@ -9,19 +10,22 @@ const priorityStyles: Record<Props["priority"], string> = {
   ACCUMULATE: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
   PILOT: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
   WATCH: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
-  BLOCKED: "bg-gray-200 text-gray-600 dark:bg-gray-700/30 dark:text-gray-400",
+  BLOCKED: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400",
 };
 
 export function CapitalPriorityBadge({ priority }: Props) {
+  const isBlocked = priority === "BLOCKED";
+  
   return (
     <span
       className={cn(
-        "px-2 py-0.5 rounded text-xs font-semibold",
+        "px-2 py-0.5 rounded text-xs font-semibold inline-flex items-center gap-1",
         priorityStyles[priority]
       )}
       data-testid={`badge-priority-${priority.toLowerCase()}`}
     >
-      {priority}
+      {isBlocked && <AlertTriangle className="w-3 h-3" />}
+      {isBlocked ? "Capital Blocked" : priority}
     </span>
   );
 }
