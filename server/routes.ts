@@ -5,12 +5,14 @@ import { searchStocks } from "./services/stocks/searchStocks";
 import { logger, providerGuard, refreshManager } from "./infra";
 import { ENGINE_VERSIONS } from "./domain/engineMeta";
 import { getMarketContext, getDefaultMarketContextSnapshot } from "./domain/marketContext/marketContextEngine";
+import { evaluatePhase3ForSymbol } from "./domain/phase3";
+import { evaluatePhase4ForSymbol } from "./domain/phase4";
 
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-  
+
   app.get("/api/dashboard", async (req, res) => {
     try {
       const [stocks, marketContext] = await Promise.all([
@@ -45,12 +47,12 @@ export async function registerRoutes(
   app.get("/api/stocks/search", async (req, res) => {
     try {
       const query = req.query.q;
-      
+
       if (!query || typeof query !== "string") {
         res.json({ results: [] });
         return;
       }
-      
+
       const results = await searchStocks(query);
       res.json({ results });
     } catch (error) {
@@ -64,23 +66,23 @@ export async function registerRoutes(
   app.get("/api/stocks/:symbol", async (req, res) => {
     try {
       const { symbol } = req.params;
-      
+
       if (!symbol || typeof symbol !== "string") {
         res.status(400).json({ error: "Invalid symbol" });
         return;
       }
-      
+
       const evaluation = await fetchStockEvaluation(symbol);
-      
+
       if (!evaluation) {
         res.status(404).json({ error: "Stock not found" });
         return;
       }
-      
+
       res.json(evaluation);
     } catch (error) {
       logger.withContext({ symbol: req.params.symbol }).error(
-        "DATA_FETCH", 
+        "DATA_FETCH",
         "Error fetching stock evaluation",
         { error: error instanceof Error ? error.message : "Unknown error" }
       );
@@ -101,12 +103,186 @@ export async function registerRoutes(
     }
   });
 
+  // Phase 3: Confirmation Layer - SEPARATE from Phase 0/1/2
+  // Only confirms or rejects Phase 2 decisions
+  // Does NOT modify scores
+  app.get("/api/phase3/:symbol", async (req, res) => {
+    try {
+      const { symbol } = req.params;
+
+      if (!symbol || typeof symbol !== "string") {
+        res.status(400).json({ error: "Invalid symbol" });
+        return;
+      }
+
+      const upperSymbol = symbol.toUpperCase();
+      const result = await evaluatePhase3ForSymbol(upperSymbol);
+
+      if (!result) {
+        res.status(404).json({ error: "Unable to evaluate Phase 3 for symbol" });
+        return;
+      }
+
+      // Return Phase 3 result with exact fields as specified
+      res.json({
+        symbol: upperSymbol,
+        confirmationScore: result.confirmationScore,
+        confirmationLevel: result.confirmationLevel,
+        confirmations: result.confirmations,
+        blockers: result.blockers,
+        meta: {
+          maxPossibleScore: result.maxPossibleScore,
+          scorePercentage: result.scorePercentage,
+          allSignals: result.allSignals,
+          evaluatedAt: result.evaluatedAt,
+        },
+      });
+    } catch (error) {
+      logger.withContext({ symbol: req.params.symbol }).error(
+        "CONFIRMATION",
+        "Error evaluating Phase 3",
+        { error: error instanceof Error ? error.message : "Unknown error" }
+      );
+      res.status(500).json({ error: "Failed to evaluate Phase 3" });
+    }
+  });
+
+  // Phase 4: Strategy Playbooks - SEPARATE from Phase 0-3
+  // Playbooks match conditions; they do not force actions
+  // Only one playbook may be active at a time
+  app.get("/api/phase4/:symbol", async (req, res) => {
+    try {
+      const { symbol } = req.params;
+
+      if (!symbol || typeof symbol !== "string") {
+        res.status(400).json({ error: "Invalid symbol" });
+        return;
+      }
+
+      const upperSymbol = symbol.toUpperCase();
+      const result = await evaluatePhase4ForSymbol(upperSymbol);
+
+      if (!result) {
+        res.status(404).json({ error: "Unable to evaluate Phase 4 for symbol" });
+        return;
+      }
+
+      // Return Phase 4 result with playbook info
+      res.json({
+        symbol: upperSymbol,
+        activePlaybook: result.activePlaybook,
+        consideredPlaybooks: result.consideredPlaybooks,
+        meta: {
+          evaluatedAt: result.evaluatedAt,
+        },
+      });
+    } catch (error) {
+      logger.withContext({ symbol: req.params.symbol }).error(
+        "CONFIRMATION",
+        "Error evaluating Phase 4",
+        { error: error instanceof Error ? error.message : "Unknown error" }
+      );
+      res.status(500).json({ error: "Failed to evaluate Phase 4" });
+    }
+  });
+
+  // Playbook Performance Tracking - Aggregate Metrics
+  // SURVIVORSHIP BIAS FREE: Shows all instances, not just successful ones
+  app.get("/api/playbook-performance/:playbookId", async (req, res) => {
+    try {
+      const { playbookId } = req.params;
+
+      // Validate playbook ID
+      const validPlaybooks = [
+        "TREND_CONTINUATION",
+        "PULLBACK_ENTRY",
+        "BASE_BREAKOUT",
+        "MEAN_REVERSION",
+        "DEFENSIVE_HOLD",
+      ];
+
+      if (!validPlaybooks.includes(playbookId)) {
+        res.status(400).json({ error: "Invalid playbook ID" });
+        return;
+      }
+
+      // Import dynamically to avoid circular deps
+      const { computeAggregateMetrics, getStoreStats } = await import("./domain/playbookTracking");
+      const { PLAYBOOK_DEFINITIONS } = await import("@shared/types/phase4");
+      const { PERFORMANCE_DISCLAIMERS } = await import("@shared/types/playbookTracking");
+
+      const metrics = await computeAggregateMetrics(playbookId as any);
+      const stats = getStoreStats();
+
+      if (!metrics) {
+        res.json({
+          playbookId,
+          playbookTitle: PLAYBOOK_DEFINITIONS[playbookId as keyof typeof PLAYBOOK_DEFINITIONS].title,
+          metrics: null,
+          message: "No instances tracked yet for this playbook",
+          storeStats: stats,
+          disclaimers: PERFORMANCE_DISCLAIMERS,
+        });
+        return;
+      }
+
+      res.json({
+        playbookId,
+        playbookTitle: PLAYBOOK_DEFINITIONS[playbookId as keyof typeof PLAYBOOK_DEFINITIONS].title,
+        metrics,
+        storeStats: stats,
+        disclaimers: PERFORMANCE_DISCLAIMERS,
+      });
+
+    } catch (error) {
+      logger.error(
+        "CONFIRMATION",
+        "Error fetching playbook performance",
+        { error: error instanceof Error ? error.message : "Unknown error" }
+      );
+      res.status(500).json({ error: "Failed to fetch playbook performance" });
+    }
+  });
+
+  // Playbook Performance Summary - All Playbooks
+  app.get("/api/playbook-performance", async (req, res) => {
+    try {
+      const { computeAggregateMetrics, getStoreStats } = await import("./domain/playbookTracking");
+      const { PLAYBOOK_DEFINITIONS } = await import("@shared/types/phase4");
+      const { PERFORMANCE_DISCLAIMERS } = await import("@shared/types/playbookTracking");
+
+      const playbookIds = Object.keys(PLAYBOOK_DEFINITIONS) as (keyof typeof PLAYBOOK_DEFINITIONS)[];
+      const allMetrics = await Promise.all(
+        playbookIds.map(async (id) => ({
+          playbookId: id,
+          playbookTitle: PLAYBOOK_DEFINITIONS[id].title,
+          metrics: await computeAggregateMetrics(id),
+        }))
+      );
+
+      res.json({
+        playbooks: allMetrics,
+        storeStats: getStoreStats(),
+        disclaimers: PERFORMANCE_DISCLAIMERS,
+      });
+
+    } catch (error) {
+      logger.error(
+        "CONFIRMATION",
+        "Error fetching playbook performance summary",
+        { error: error instanceof Error ? error.message : "Unknown error" }
+      );
+      res.status(500).json({ error: "Failed to fetch playbook performance summary" });
+    }
+  });
+
+
   app.get("/api/infra/health", async (req, res) => {
     try {
       const providerHealth = providerGuard.getAllHealth();
       const schedulerStatus = refreshManager.getStatus();
       const recentLogs = logger.getRecentLogs(20);
-      
+
       res.json({
         status: "healthy",
         timestamp: new Date().toISOString(),
@@ -125,9 +301,9 @@ export async function registerRoutes(
         })),
       });
     } catch (error) {
-      res.status(500).json({ 
-        status: "error", 
-        error: error instanceof Error ? error.message : "Unknown error" 
+      res.status(500).json({
+        status: "error",
+        error: error instanceof Error ? error.message : "Unknown error"
       });
     }
   });
@@ -135,7 +311,7 @@ export async function registerRoutes(
   app.get("/api/infra/logs", async (req, res) => {
     try {
       const { symbol, type, count = "50" } = req.query;
-      
+
       let logs;
       if (symbol && typeof symbol === "string") {
         logs = logger.getLogsBySymbol(symbol, parseInt(count as string));
@@ -144,7 +320,7 @@ export async function registerRoutes(
       } else {
         logs = logger.getRecentLogs(parseInt(count as string));
       }
-      
+
       res.json({ logs });
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch logs" });

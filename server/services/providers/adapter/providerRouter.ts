@@ -7,6 +7,7 @@ import type {
   OptionsData,
 } from "./types";
 import { mockProvider } from "./mockProvider";
+import { rateLimitedFetch } from "../providers/finnhub/rateLimiter";
 import { 
   fetchMarketstackEOD, 
   isMarketstackAvailable,
@@ -15,7 +16,7 @@ import {
   type EODData,
   type OHLCData,
 } from "../marketstack";
-import { logger } from "../../../infra/logging/logger";
+import { logger, providerGuard } from "../../../infra";
 
 export interface EODPrice {
   symbol: string;
@@ -258,33 +259,83 @@ export async function getMarketData(symbol: string): Promise<AggregatedMarketDat
   } else {
     log.providerFailure(`Price unavailable for ${upperSymbol}: ${eodResult.error}`);
     providersFailed.push("Marketstack-EOD");
-    
-    quote = {
-      symbol: upperSymbol,
-      price: 0,
-      change: 0,
-      changePercent: 0,
-      open: 0,
-      high: 0,
-      low: 0,
-      previousClose: 0,
-      volume: 0,
-      timestamp: 0,
-    };
-    
-    ohlcCandles = [];
-    technicals = {
-      rsi: 0,
-      sma20: 0,
-      sma50: 0,
-      sma200: 0,
-      ema20: 0,
-      ema50: 0,
-      atr: 0,
-      atrPercent: 0,
-    };
-    
-    priceSource = "Unavailable";
+
+    // Try Finnhub quote as a fallback for EOD/price data
+    const FINNHUB_API_KEY = process.env.FINNHUB_API_KEY;
+    let finnSuccess = false;
+
+    if (FINNHUB_API_KEY) {
+      const fhData = await providerGuard.withGuard("Finnhub", async () => {
+        const fhUrl = `https://finnhub.io/api/v1/quote?symbol=${upperSymbol}&token=${FINNHUB_API_KEY}`;
+        const fhResp = await rateLimitedFetch(fhUrl);
+        if (!fhResp.ok) throw new Error(`HTTP ${fhResp.status}`);
+        return fhResp.json();
+      });
+
+      if (fhData && typeof fhData.c === 'number' && fhData.c > 0) {
+        quote = {
+          symbol: upperSymbol,
+          price: fhData.c,
+          change: fhData.d ?? 0,
+          changePercent: fhData.dp ?? 0,
+          open: fhData.o ?? 0,
+          high: fhData.h ?? 0,
+          low: fhData.l ?? 0,
+          previousClose: fhData.pc ?? 0,
+          volume: 0,
+          timestamp: fhData.t ? fhData.t * 1000 : Date.now(),
+        };
+
+        ohlcCandles = [{
+          timestamp: fhData.t ? fhData.t * 1000 : Date.now(),
+          open: fhData.o ?? fhData.c,
+          high: fhData.h ?? fhData.c,
+          low: fhData.l ?? fhData.c,
+          close: fhData.c,
+          volume: 0,
+        }];
+
+        technicals = computeTechnicalsFromOHLC(ohlcCandles, quote.price);
+        priceSource = "Finnhub-Quote";
+        providersUsed.push("Finnhub-Quote");
+        finnSuccess = true;
+
+        log.dataFetch(`Fallback Finnhub quote for ${upperSymbol}: $${quote.price}`, { cached: false });
+      } else {
+        log.providerFailure(`Finnhub returned no usable quote for ${upperSymbol}`);
+      }
+    } else {
+      log.providerFailure("FINNHUB_API_KEY not configured for fallback");
+    }
+
+    if (!finnSuccess) {
+      quote = {
+        symbol: upperSymbol,
+        price: 0,
+        change: 0,
+        changePercent: 0,
+        open: 0,
+        high: 0,
+        low: 0,
+        previousClose: 0,
+        volume: 0,
+        timestamp: 0,
+      };
+      
+      ohlcCandles = [];
+      technicals = {
+        rsi: 0,
+        sma20: 0,
+        sma50: 0,
+        sma200: 0,
+        ema20: 0,
+        ema50: 0,
+        atr: 0,
+        atrPercent: 0,
+      };
+      
+      priceSource = "Unavailable";
+    }
   }
 
   providersUsed.push("Local-Technicals");

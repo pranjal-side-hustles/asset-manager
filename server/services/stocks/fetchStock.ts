@@ -55,6 +55,7 @@ export interface ExtendedStockEvaluationResponse
   providersUsed: string[];
 }
 
+
 function snapshotToStock(snapshot: StockSnapshot): Stock {
   return {
     symbol: snapshot.symbol,
@@ -124,12 +125,13 @@ export async function fetchStockEvaluation(
   const tacticalInputs = convertSnapshotToTacticalInputs(snapshot);
 
   // Derive sector and regime for tactical evaluation
-  const sector = stock.sector && stock.sector !== "Unknown" 
-    ? stock.sector 
+  const sector = stock.sector && stock.sector !== "Unknown"
+    ? stock.sector
     : (SYMBOL_SECTOR_MAP[symbol] ?? "Unknown");
   const sectorInputs = deriveSectorInputs(sector, marketContext);
   const sectorResult = evaluateSectorRegime(sector, sectorInputs);
 
+  // Phase 1 & 2: Core evaluations (UNCHANGED)
   const strategicGrowth = evaluateStrategicGrowth(
     strategicInputs,
     symbol,
@@ -143,11 +145,14 @@ export async function fetchStockEvaluation(
   );
 
   const horizonLabel = deriveHorizonLabel(strategicGrowth.status, tacticalSentinel.status);
-  
+
   const allIntegrityFlags = [
     ...(strategicGrowth.integrityFlags || []),
     ...(tacticalSentinel.integrityFlags || []),
   ].filter((flag, index, arr) => arr.indexOf(flag) === index);
+
+  // Phase 3: Confirmation Layer (SEPARATE - does NOT modify scores)
+  // Fetched separately via /api/phase3/:symbol endpoint
 
   return {
     stock,
@@ -160,7 +165,7 @@ export async function fetchStockEvaluation(
     },
     dataConfidence: snapshot.meta.confidence,
     confidenceReasons: snapshot.meta.confidenceReasons,
-    warnings: allIntegrityFlags.length > 0 
+    warnings: allIntegrityFlags.length > 0
       ? [...snapshot.meta.warnings, ...allIntegrityFlags]
       : snapshot.meta.warnings,
     providersUsed: snapshot.meta.providersUsed,
@@ -249,7 +254,7 @@ export async function fetchDashboardStocks(): Promise<DashboardStock[]> {
       results.push({ status: "rejected", reason: error });
     }
   }
-  
+
   // Fetch market context AFTER stocks (indices/sectors are lower priority)
   const marketContextSnapshot = await getMarketContext();
 
@@ -337,7 +342,7 @@ export async function fetchDashboardStocks(): Promise<DashboardStock[]> {
   const dashboardStocks: DashboardStock[] = evaluatedStocks.map((s) => {
     const ranked = rankedStocks.find((r) => r.symbol === s.snapshot.symbol);
     const horizonLabel = deriveHorizonLabel(s.strategicGrowth.status, s.tacticalSentinel.status);
-    
+
     const allIntegrityFlags = [
       ...(s.strategicGrowth.integrityFlags || []),
       ...(s.tacticalSentinel.integrityFlags || []),
