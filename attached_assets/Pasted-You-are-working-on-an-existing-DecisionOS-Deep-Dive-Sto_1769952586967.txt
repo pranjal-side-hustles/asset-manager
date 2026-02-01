@@ -1,0 +1,236 @@
+You are working on an existing DecisionOS / Deep Dive Stock OS codebase.
+
+The current decision engine is GOOD and FUNCTIONAL
+
+Strategies, factors, thresholds, and regime logic already exist
+
+DO NOT remove, rename, or rewrite existing strategies
+
+DO NOT add new factors unless explicitly instructed
+
+Goal is to slightly rebalance and clarify decision weightage so users get:
+
+Clear WHY (Strategic)
+
+Clear WHEN (Tactical)
+
+Think in terms of signal emphasis, not feature expansion.
+
+🎯 OBJECTIVE
+
+Improve the clarity and directionality of the existing decision engine by:
+
+Slightly increasing the influence of:
+
+Fundamentals in Strategic horizon
+
+Technical + Events in Tactical horizon
+
+Introducing a light Integrity & Event Gate (non-breaking)
+
+Making Tactical vs Strategic intent more obvious to users
+
+Keeping all existing scores, statuses, and rankings intact
+
+This is a calibration pass, not a redesign.
+
+🧠 DESIGN PRINCIPLE (IMPORTANT)
+
+Strategic horizon answers: “WHY should I own this?”
+
+Tactical horizon answers: “WHEN should I act?”
+
+Use this principle when adjusting weight influence.
+
+🟢 STEP 1 — ADD A LIGHT INTEGRITY & EVENT GATE (NON-DESTRUCTIVE)
+Purpose
+
+Improve user trust by clearly signaling binary risk, without blocking existing logic.
+
+Add (new utility, optional use):
+server/domain/risk/integrityAudit.ts
+
+Checks (NO NEW DATA SOURCES)
+
+Trend status (already available)
+
+Earnings proximity (existing event proximity logic)
+
+Manual newsRisk boolean (placeholder)
+
+Behavior
+
+If earnings < 5 days OR newsRisk = true:
+
+Add a Binary Risk Flag
+
+Display warning in UI
+
+Tactical engine:
+
+Apply additional penalty (-5 to -10), NOT a hard block
+
+Strategic engine:
+
+Flag only, no score penalty
+
+⚠️ Do NOT override or remove existing event proximity scoring
+This is an overlay, not a replacement.
+
+🟢 STEP 2 — STRATEGIC ENGINE (4–9 MONTHS): EMPHASIZE “WHY”
+Goal
+
+Slightly increase fundamental conviction without breaking current factor math.
+
+Current Strategic Factors (KEEP ALL)
+
+Risk & Portfolio Guardrails
+
+Macro Alignment
+
+Institutional Signals
+
+Fundamental Acceleration
+
+Weekly Technical Structure
+
+Time-Based Thesis Decay
+
+Required Adjustment (SUBTLE)
+A. Increase Fundamental Influence
+
+Increase Fundamental Acceleration effective influence by ~10–15%
+
+Do NOT change raw point caps
+
+Apply a small multiplier internally (e.g. ×1.1)
+
+B. Technical = Confirmation, Not Driver
+
+Weekly Technical Structure:
+
+Continue to contribute
+
+But cap its downside penalty so strong fundamentals are not fully negated
+
+C. Output Messaging (IMPORTANT)
+
+Expose labels in result:
+
+“Fundamental Conviction: High / Medium / Low”
+
+“Technical Alignment: Confirming / Neutral / Weak”
+
+No new scores required — derive from existing factor percentages.
+
+🟢 STEP 3 — TACTICAL ENGINE (0–4 MONTHS): EMPHASIZE “WHEN”
+Goal
+
+Make Tactical scores feel timing-sensitive, not thesis-driven.
+
+Current Tactical Factors (KEEP ALL)
+
+Multi-Timeframe Technical Alignment
+
+Momentum Regime
+
+Liquidity & Volume Triggers
+
+Sentiment & Options Context
+
+Event Proximity
+
+Time Stop Logic
+
+Opportunity Ranking
+
+Required Adjustment
+A. Increase Technical + Event Sensitivity
+
+Slightly increase influence of:
+
+Multi-Timeframe Technical Alignment
+
+Momentum Regime
+
+Event Proximity
+
+Practical effect:
+
+Strong technicals should visibly lift Tactical score
+
+Near earnings should more clearly suppress Tactical score
+
+B. Fundamentals = Filter Only
+
+Do NOT remove fundamentals
+
+Ensure fundamentals:
+
+Prevent bad trades
+
+Do NOT meaningfully boost Tactical score
+
+C. Output Messaging
+
+Expose labels:
+
+“Technical Setup: Strong / Developing / Weak”
+
+“Event Risk: Near / Clear”
+
+🟢 STEP 4 — MAKE STRATEGIC VS TACTICAL DIFFERENCE OBVIOUS
+UI / Output Clarity (No UI redesign required)
+
+Ensure final output communicates:
+
+Strategic score = Ownership quality
+
+Tactical score = Action readiness
+
+If both scores are high:
+
+Label as “High Conviction + Actionable”
+
+If Strategic high / Tactical low:
+
+Label as “Strong Business – Wait for Setup”
+
+If Tactical high / Strategic low:
+
+Label as “Short-Term Opportunity Only”
+
+These are labels only, no new logic needed.
+
+🚫 STRICT DO-NOTs
+
+❌ Do NOT change regime logic
+
+❌ Do NOT add new external data
+
+❌ Do NOT delete existing factors
+
+❌ Do NOT merge Strategic & Tactical logic
+
+❌ Do NOT inflate scores artificially
+
+✅ SUCCESS CRITERIA
+
+Existing engine continues to work
+
+Scores feel more intuitive and directional
+
+Users clearly understand:
+
+WHY a stock is good
+
+WHEN it is actionable
+
+No assumptions added
+
+Code remains Phase-3 ready
+
+🧠 FINAL GUIDANCE TO AGENT
+
+This task is about clarity and emphasis, not complexity.
+Prefer small, intentional adjustments over large rewrites.
