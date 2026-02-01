@@ -13,6 +13,8 @@ import {
 import { buildTacticalEvaluation } from "./scoring";
 import { ENGINE_VERSIONS, createEngineMetadata } from "../../engineMeta";
 import { logger } from "../../../infra/logging/logger";
+import { evaluateIntegrityGate } from "../../risk/integrityAudit";
+import { deriveHorizonLabel } from "../../calibration";
 
 export interface TacticalSentinelResult extends TacticalSentinelEvaluation {
   meta: {
@@ -71,12 +73,19 @@ export function evaluateTacticalSentinel(
     opportunityRanking: evaluateOpportunityRanking(inputs),
   };
 
-  const evaluation = buildTacticalEvaluation(details);
+  const evaluation = buildTacticalEvaluation(details, inputs.daysToEarnings, inputs.hasUpcomingNews);
+  
+  const integrityResult = evaluateIntegrityGate({
+    daysToEarnings: inputs.daysToEarnings,
+    newsRisk: inputs.hasUpcomingNews,
+  });
 
-  const { adjustedScore, adjustment } = applyRegimeAdjustment(
+  const { adjustedScore: regimeAdjustedScore, adjustment } = applyRegimeAdjustment(
     evaluation.score,
     marketContext
   );
+  
+  const adjustedScore = Math.max(0, Math.min(100, regimeAdjustedScore + integrityResult.tacticalPenalty));
 
   const adjustedStatus = adjustedScore >= 70 ? "TRADE" : adjustedScore >= 50 ? "WATCH" : "AVOID";
 
@@ -99,8 +108,9 @@ export function evaluateTacticalSentinel(
     ...evaluation,
     score: adjustedScore,
     status: adjustedStatus as "TRADE" | "WATCH" | "AVOID",
+    integrityFlags: integrityResult.riskFlags.length > 0 ? integrityResult.riskFlags : undefined,
     meta,
-    regimeAdjustment: adjustment,
+    regimeAdjustment: adjustment + integrityResult.tacticalPenalty,
   };
 }
 

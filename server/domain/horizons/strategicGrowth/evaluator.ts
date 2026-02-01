@@ -13,6 +13,7 @@ import {
 import { buildStrategicEvaluation } from "./scoring";
 import { ENGINE_VERSIONS, createEngineMetadata } from "../../engineMeta";
 import { logger } from "../../../infra/logging/logger";
+import { evaluateIntegrityGate } from "../../risk/integrityAudit";
 
 export interface StrategicGrowthResult extends StrategicGrowthEvaluation {
   meta: {
@@ -71,6 +72,11 @@ export function evaluateStrategicGrowth(
   };
 
   const evaluation = buildStrategicEvaluation(details);
+  
+  const integrityResult = evaluateIntegrityGate({
+    daysToEarnings: inputs.daysToEarnings,
+    newsRisk: inputs.hasUpcomingNews,
+  });
 
   const { adjustedScore, adjustment } = applyRegimeAdjustment(
     evaluation.score,
@@ -114,6 +120,7 @@ export function evaluateStrategicGrowth(
     ...evaluation,
     score: adjustedScore,
     status: adjustedStatus as "ELIGIBLE" | "WATCH" | "REJECT",
+    integrityFlags: integrityResult.riskFlags.length > 0 ? integrityResult.riskFlags : undefined,
     meta,
     regimeAdjustment: adjustment,
   };

@@ -1,4 +1,4 @@
-import type { StrategicGrowthEvaluation, TacticalSentinelEvaluation, StrategicGrowthStatus, TacticalSentinelStatus } from "./horizon";
+import type { StrategicGrowthEvaluation, TacticalSentinelEvaluation, StrategicGrowthStatus, TacticalSentinelStatus, StrategicLabels, TacticalLabels } from "./horizon";
 import type { Stock, StockQuote, DataConfidence } from "./stock";
 
 export interface EngineMetadata {
@@ -14,6 +14,7 @@ export interface StockEvaluationResponse {
     strategicGrowth: StrategicGrowthEvaluation & { meta?: EngineMetadata };
     tacticalSentinel: TacticalSentinelEvaluation & { meta?: EngineMetadata };
     evaluatedAt: number;
+    horizonLabel?: string;
   };
   dataConfidence?: DataConfidence;
   confidenceReasons?: string[];
@@ -32,6 +33,10 @@ export interface DashboardStock {
   strategicStatus: StrategicGrowthStatus;
   tacticalScore: number;
   tacticalStatus: TacticalSentinelStatus;
+  horizonLabel?: string;
+  strategicLabels?: StrategicLabels;
+  tacticalLabels?: TacticalLabels;
+  integrityFlags?: string[];
   // Phase 2 fields (optional for backward compatibility)
   sector?: string;
   sectorRegime?: "FAVORED" | "NEUTRAL" | "AVOID";

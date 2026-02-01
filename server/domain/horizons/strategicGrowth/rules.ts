@@ -16,6 +16,8 @@ export interface StrategicInputs {
   weeklyRsiLevel: number;
   daysInPosition: number;
   maxHoldingPeriod: number;
+  daysToEarnings?: number;
+  hasUpcomingNews?: boolean;
 }
 
 function getStatus(score: number, maxScore: number): "pass" | "caution" | "fail" {
