@@ -143,6 +143,36 @@ After saving, **redeploy** the project (Deployments → ⋮ → Redeploy) so the
 
 ---
 
+## 🚂 Railway: Deploy
+
+This repo is set up to deploy on [Railway](https://railway.app) with **zero extra config** beyond environment variables.
+
+### Deploy steps
+
+1. **Create a project**  
+   [railway.app](https://railway.app) → **New Project** → **Deploy from GitHub repo** (or **Empty project** and connect the repo later).
+
+2. **Add the repo**  
+   If you started from GitHub: select this repository. Railway will use the root `railway.toml` for build and start:
+   - **Build:** `npm run build` (Vite client → `dist/public`, server bundle → `dist/index.cjs`)
+   - **Start:** `node dist/index.cjs` (single process; Railway sets `PORT`)
+
+3. **Set environment variables**  
+   In the Railway project: **Variables** (or service **Variables**), add the same keys as in [.env.example](.env.example):
+   - `FINNHUB_API_KEY` – [finnhub.io](https://finnhub.io/)
+   - `MARKETSTACK_API_KEY` – [marketstack.com](https://marketstack.com/)
+   - `FMP_API_KEY` – [financialmodelingprep.com](https://financialmodelingprep.com/)
+   - `DATABASE_URL` – only if you use the DB (e.g. Neon/Supabase)
+
+4. **Deploy**  
+   Push to the connected branch or trigger a deploy from the dashboard. Railway will run `npm run build` then `node dist/index.cjs`. The app will be available at the generated URL (e.g. `https://your-app.up.railway.app`).
+
+### Health check
+
+`railway.toml` sets `healthcheckPath = "/api/infra/health"` so Railway can confirm the app is up. The root `/` and all API routes are served by the same Node process (no serverless; same as Replit/local).
+
+---
+
 ## 📦 Available Scripts
 
 | Command | Description |
