@@ -14,6 +14,19 @@ import type { PortfolioSnapshot } from "@shared/types/portfolio";
 
 const TRACKED_SYMBOLS = ["AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "TSLA", "JPM", "V"];
 
+// Fallback sector mapping for known symbols when provider data is unavailable
+const SYMBOL_SECTOR_MAP: Record<string, string> = {
+  AAPL: "Technology",
+  MSFT: "Technology",
+  GOOGL: "Communication Services",
+  AMZN: "Consumer Discretionary",
+  NVDA: "Technology",
+  META: "Communication Services",
+  TSLA: "Consumer Discretionary",
+  JPM: "Financial Services",
+  V: "Financial Services",
+};
+
 export interface ExtendedStockEvaluationResponse extends StockEvaluationResponse {
   dataConfidence: DataConfidence;
   warnings: string[];
@@ -111,17 +124,37 @@ function getMockPortfolioSnapshot(): PortfolioSnapshot {
 
 // Derive sector inputs from market context
 function deriveSectorInputs(sector: string, marketContext: MarketContext): SectorInputs {
-  const sectorData = marketContext.sectors?.find(s => 
-    s.name.toUpperCase().includes(sector.toUpperCase()) ||
-    sector.toUpperCase().includes(s.name.toUpperCase())
-  );
+  // Normalize sector for matching
+  const normalizedSector = sector.toLowerCase().trim();
+  
+  // Try to find matching sector data
+  const sectorData = marketContext.sectors?.find(s => {
+    const sectorName = s.name.toLowerCase().trim();
+    return sectorName.includes(normalizedSector) ||
+           normalizedSector.includes(sectorName) ||
+           (normalizedSector === "technology" && sectorName.includes("tech")) ||
+           (normalizedSector === "communication services" && sectorName.includes("comm")) ||
+           (normalizedSector === "consumer discretionary" && sectorName.includes("consumer")) ||
+           (normalizedSector === "financial services" && sectorName.includes("financ"));
+  });
+  
+  // Determine volatility: use actual VIX level if available
+  let volatility: "LOW" | "NORMAL" | "HIGH";
+  const vixLevel = marketContext.volatility?.vixLevel;
+  if (vixLevel !== undefined) {
+    if (vixLevel < 15) volatility = "LOW";
+    else if (vixLevel > 25) volatility = "HIGH";
+    else volatility = "NORMAL";
+  } else {
+    volatility = marketContext.volatility?.isElevated ? "HIGH" : "NORMAL";
+  }
   
   return {
     relativeStrength: sectorData?.trend === "LEADING" ? "UP" : 
                       sectorData?.trend === "LAGGING" ? "DOWN" : "FLAT",
     trendHealth: marketContext.regime === "RISK_ON" ? "STRONG" :
                  marketContext.regime === "RISK_OFF" ? "WEAK" : "NEUTRAL",
-    volatility: marketContext.volatility?.isElevated ? "HIGH" : "NORMAL",
+    volatility,
     macroAlignment: marketContext.regime === "RISK_ON" ? "TAILWIND" :
                     marketContext.regime === "RISK_OFF" ? "HEADWIND" : "NEUTRAL",
   };
@@ -152,7 +185,10 @@ export async function fetchDashboardStocks(): Promise<DashboardStock[]> {
     
     if (result.status === "fulfilled" && result.value) {
       const snapshot = result.value;
-      const sector = snapshot.sector || "Unknown";
+      // Use snapshot sector if available, otherwise fallback to known mapping
+      const sector = snapshot.sector && snapshot.sector !== "Unknown" 
+        ? snapshot.sector 
+        : SYMBOL_SECTOR_MAP[symbol] || "Unknown";
       
       const strategicInputs = convertSnapshotToStrategicInputs(snapshot);
       const tacticalInputs = convertSnapshotToTacticalInputs(snapshot);
