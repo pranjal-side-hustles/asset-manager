@@ -29,10 +29,11 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    // Use VITE_API_URL for Railway backend, default to relative path for local/Vercel setup
-    const apiUrl = import.meta.env.VITE_API_URL || "";
+    // For Railway backend: set VITE_API_URL in Vercel environment variables
+    // It will be baked into the build as import.meta.env.VITE_API_URL
+    const apiBaseUrl = import.meta.env.VITE_API_URL || "";
     const path = Array.isArray(queryKey) ? queryKey.join("/") : queryKey;
-    const fullUrl = apiUrl ? `${apiUrl}${path}` : (path as string);
+    const fullUrl = apiBaseUrl ? `${apiBaseUrl}${path}` : (path as string);
     
     const res = await fetch(fullUrl, {
       credentials: "include",
