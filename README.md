@@ -173,6 +173,33 @@ This repo is set up to deploy on [Railway](https://railway.app) with **zero extr
 
 ---
 
+## 🔧 Troubleshooting: Vercel & Railway
+
+**Why the app might not work on Vercel or Railway**
+
+1. **Build fails: “tsx: command not found” or “Cannot find module 'vite'”**  
+   The build script (`npm run build`) uses **tsx**, **vite**, and **esbuild**, which are in **devDependencies**. If the platform runs `npm install` with `NODE_ENV=production`, devDependencies are skipped and the build fails.
+   - **Vercel:** `vercel.json` now sets `installCommand: "npm install --include=dev"` so devDependencies are installed before the build.
+   - **Railway:** `railway.toml` uses `buildCommand: "npm install --include=dev && npm run build"` so devDependencies are installed before the build.  
+   If you overrode the install/build commands in the dashboard, restore the repo defaults or keep `--include=dev` in the install step.
+
+2. **Vercel: Blank page or “download file” instead of opening the app**  
+   - Ensure **outputDirectory** is `dist/public` (set in `vercel.json`).  
+   - Ensure **rewrites** are present: `/api/*` stays as-is; other paths go to `/index.html` for the SPA. Static files (e.g. `/assets/*`) are served from `dist/public` before rewrites.
+
+3. **Vercel: API routes return 500 or timeout**  
+   The `/api/*` handler runs the Express app in a serverless function. First request can be slow (cold start). Add env vars (e.g. `FINNHUB_API_KEY`, `MARKETSTACK_API_KEY`, `FMP_API_KEY`) in Vercel → Settings → Environment Variables and redeploy.
+
+4. **Railway: App doesn’t start or health check fails**  
+   - Start command must be `node dist/index.cjs` (set in `railway.toml`).  
+   - Railway sets `PORT`; the app uses `process.env.PORT`.  
+   - Health check hits `/api/infra/health`; ensure the service is listening and env vars are set.
+
+5. **Both: Missing API keys**  
+   Without `FINNHUB_API_KEY`, `MARKETSTACK_API_KEY`, and `FMP_API_KEY`, the app may build and run but data calls will fail or fall back to mocks. Add these in the platform’s environment variables (and optionally `DATABASE_URL` if you use the DB).
+
+---
+
 ## 📦 Available Scripts
 
 | Command | Description |
