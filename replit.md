@@ -172,16 +172,24 @@ The UI displays a confidence badge based on provider availability:
 - **MEDIUM**: 50-80% of providers responded
 - **LOW**: <50% of providers responded
 
+### Provider Priority for Price Data
+
+Price quotes are fetched in this order of priority:
+1. **Finnhub** (primary) - Real-time quotes via `/quote` endpoint
+2. **FMP** (secondary) - Fallback if Finnhub fails
+3. **Marketstack** (tertiary) - EOD latest data as last resort
+4. **Mock data** - Used only if all providers fail
+
 ### API Key Requirements
+
+**Finnhub** (Primary for quotes)
+- Free tier key works for real-time quotes, sentiment, and institutional data
+- Sign up at: https://finnhub.io/
 
 **FMP (FinancialModelingPrep)**
 - Requires a valid API key from their current (non-legacy) tier
 - Keys created before August 31, 2025 may show "Legacy Endpoint" errors
 - Sign up at: https://site.financialmodelingprep.com/developer/docs
-
-**Finnhub**
-- Free tier key works for sentiment and institutional data
-- Sign up at: https://finnhub.io/
 
 **Marketstack**
 - Requires HTTPS (paid tier) for production use

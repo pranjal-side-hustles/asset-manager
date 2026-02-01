@@ -9,10 +9,10 @@ import type {
 } from "@shared/types";
 
 import { fetchFMPPrice, fetchFMPFinancials, fetchFMPTechnicals } from "../providers/fmp";
-import { fetchFinnhubSentiment, fetchFinnhubInstitutional, fetchFinnhubOptions } from "../providers/finnhub";
+import { fetchFinnhubSentiment, fetchFinnhubInstitutional, fetchFinnhubOptions, fetchFinnhubQuote } from "../providers/finnhub";
 import { fetchMarketstackHistorical, fetchMarketstackQuote } from "../providers/marketstack";
 
-import { normalizeFMPPrice, normalizeMarketstackQuote } from "../normalization/normalizePrice";
+import { normalizeFMPPrice, normalizeMarketstackQuote, normalizeFinnhubQuote } from "../normalization/normalizePrice";
 import { normalizeFMPFinancials } from "../normalization/normalizeFinancials";
 import { normalizeFMPTechnicals } from "../normalization/normalizeTechnicals";
 import { normalizeFinnhubSentiment, normalizeFinnhubOptions, normalizePutCallRatio } from "../normalization/normalizeSentiment";
@@ -67,6 +67,7 @@ export async function getStockSnapshot(symbol: string): Promise<StockSnapshot | 
   const warnings: string[] = [];
 
   const [
+    finnhubQuoteResult,
     fmpPriceResult,
     fmpFinancialsResult,
     fmpTechnicalsResult,
@@ -76,6 +77,7 @@ export async function getStockSnapshot(symbol: string): Promise<StockSnapshot | 
     marketstackHistoricalResult,
     marketstackQuoteResult
   ] = await Promise.allSettled([
+    fetchFinnhubQuote(symbol),
     fetchFMPPrice(symbol),
     fetchFMPFinancials(symbol),
     fetchFMPTechnicals(symbol),
@@ -86,6 +88,7 @@ export async function getStockSnapshot(symbol: string): Promise<StockSnapshot | 
     fetchMarketstackQuote(symbol)
   ]);
 
+  const finnhubQuote = finnhubQuoteResult.status === "fulfilled" ? finnhubQuoteResult.value : null;
   const fmpPrice = fmpPriceResult.status === "fulfilled" ? fmpPriceResult.value : null;
   const fmpFinancials = fmpFinancialsResult.status === "fulfilled" ? fmpFinancialsResult.value : null;
   const fmpTechnicals = fmpTechnicalsResult.status === "fulfilled" ? fmpTechnicalsResult.value : null;
@@ -95,13 +98,11 @@ export async function getStockSnapshot(symbol: string): Promise<StockSnapshot | 
   const marketstackHistorical = marketstackHistoricalResult.status === "fulfilled" ? marketstackHistoricalResult.value : null;
   const marketstackQuote = marketstackQuoteResult.status === "fulfilled" ? marketstackQuoteResult.value : null;
 
+  if (finnhubQuote) providersUsed.push("Finnhub-Quote");
+  else providersFailed.push("Finnhub-Quote");
+
   if (fmpPrice) providersUsed.push("FMP-Price");
-  else {
-    providersFailed.push("FMP-Price");
-    if (!marketstackQuote) {
-      warnings.push("Price data unavailable from primary source");
-    }
-  }
+  else providersFailed.push("FMP-Price");
   
   if (marketstackQuote) providersUsed.push("Marketstack-Quote");
   else providersFailed.push("Marketstack-Quote");
@@ -130,9 +131,18 @@ export async function getStockSnapshot(symbol: string): Promise<StockSnapshot | 
   if (marketstackHistorical) providersUsed.push("Marketstack-Historical");
   else providersFailed.push("Marketstack-Historical");
 
-  const normalizedPrice = fmpPrice 
-    ? normalizeFMPPrice(fmpPrice) 
-    : normalizeMarketstackQuote(marketstackQuote, symbol);
+  let normalizedPrice = normalizeFinnhubQuote(finnhubQuote, symbol);
+  let priceSource = "Finnhub";
+  
+  if (!normalizedPrice) {
+    normalizedPrice = normalizeFMPPrice(fmpPrice);
+    priceSource = "FMP";
+  }
+  
+  if (!normalizedPrice) {
+    normalizedPrice = normalizeMarketstackQuote(marketstackQuote, symbol);
+    priceSource = "Marketstack";
+  }
 
   if (!normalizedPrice) {
     console.warn(`[Aggregator] No price data available for ${symbol} from any provider, falling back to mock data`);
@@ -143,10 +153,7 @@ export async function getStockSnapshot(symbol: string): Promise<StockSnapshot | 
     return mockSnapshot;
   }
   
-  if (!fmpPrice && marketstackQuote) {
-    console.log(`[Aggregator] Using Marketstack quote as fallback for ${symbol}`);
-    warnings.push("Using Marketstack quote data (some details may be limited)");
-  }
+  console.log(`[Aggregator] Using ${priceSource} quote for ${symbol}: $${normalizedPrice.price}`);
   const normalizedFundamentals = normalizeFMPFinancials(fmpFinancials);
   const normalizedTechnicals = normalizeFMPTechnicals(fmpTechnicals, fmpPrice);
   const normalizedSentiment = normalizeFinnhubSentiment(finnhubSentiment, finnhubInstitutional);

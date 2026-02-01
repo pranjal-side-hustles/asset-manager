@@ -1,6 +1,7 @@
 import type { PartialStockData } from "@shared/types";
 import type { FMPPriceData } from "../providers/fmp";
 import type { MarketstackPriceQuote } from "../providers/marketstack";
+import type { FinnhubPriceQuote } from "../providers/finnhub";
 
 export function normalizeFMPPrice(data: FMPPriceData | null): PartialStockData["price"] {
   if (!data) return undefined;
@@ -43,5 +44,25 @@ export function normalizeMarketstackQuote(data: MarketstackPriceQuote | null, sy
     low: data.low,
     open: data.open,
     previousClose,
+  };
+}
+
+export function normalizeFinnhubQuote(data: FinnhubPriceQuote | null, symbol: string): PartialStockData["price"] {
+  if (!data) return undefined;
+
+  return {
+    symbol: data.symbol || symbol,
+    companyName: symbol,
+    price: data.price,
+    change: data.change,
+    changePercent: data.changePercent,
+    volume: 0,
+    marketCap: 0,
+    sector: "Unknown",
+    industry: "Unknown",
+    high: data.high,
+    low: data.low,
+    open: data.open,
+    previousClose: data.previousClose,
   };
 }
