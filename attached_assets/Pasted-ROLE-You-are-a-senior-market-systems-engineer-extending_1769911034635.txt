@@ -1,0 +1,276 @@
+ROLE
+
+You are a senior market-systems engineer extending an existing Next.js App Router + TypeScript application.
+
+Your task is to build the Market Context Layer that provides global market intelligence used by all strategy engines.
+
+This layer must:
+
+Be authoritative
+
+Be reusable
+
+Be explainable
+
+Integrate cleanly with existing horizon engines
+
+PHASE 1 OBJECTIVES
+
+Implement a Market Context Engine that determines:
+
+Overall market regime (Risk-On / Neutral / Risk-Off)
+
+Index trend health
+
+Market breadth
+
+Sector leadership
+
+Top movers (contextual, not signals)
+
+This phase unblocks BUY / ELIGIBLE decisions downstream.
+
+CORE DESIGN PRINCIPLE
+
+Market Context is GLOBAL, not stock-specific.
+
+It should be:
+
+Computed once
+
+Cached
+
+Consumed by all strategy engines
+
+REQUIRED FOLDER STRUCTURE
+
+Add the following:
+
+src/
+├── domain/
+│   ├── marketContext/
+│   │   ├── regimeEvaluator.ts
+│   │   ├── breadthEvaluator.ts
+│   │   ├── sectorEvaluator.ts
+│   │   ├── indexTrends.ts
+│   │   └── marketContextEngine.ts
+│
+├── services/
+│   ├── market/
+│   │   ├── fetchIndices.ts
+│   │   ├── fetchBreadth.ts
+│   │   └── fetchSectors.ts
+│
+├── shared/
+│   ├── types/
+│   │   └── marketContext.ts
+│
+├── ui/
+│   ├── market/
+│   │   ├── MarketOverviewCard.tsx
+│   │   ├── IndexTrendCard.tsx
+│   │   ├── BreadthCard.tsx
+│   │   └── SectorHeatmap.tsx
+
+MARKET CONTEXT DATA MODEL (MANDATORY)
+
+Define in shared/types/marketContext.ts:
+
+export type MarketRegime = "RISK_ON" | "NEUTRAL" | "RISK_OFF";
+
+export interface MarketContext {
+  regime: MarketRegime;
+  confidence: "HIGH" | "MEDIUM" | "LOW";
+
+  indices: {
+    spy: IndexState;
+    qqq: IndexState;
+    dia: IndexState;
+    iwm: IndexState;
+  };
+
+  breadth: {
+    pctAbove200DMA: number;
+    advanceDeclineRatio: number;
+    newHighsLowsRatio: number;
+  };
+
+  sectors: SectorState[];
+
+  evaluatedAt: Date;
+  dataFreshness: Date;
+}
+
+INDEX TREND LOGIC
+
+For each major index ($SPY, $QQQ, $DIA, $IWM):
+
+interface IndexState {
+  trend: "UP" | "SIDEWAYS" | "DOWN";
+  above200DMA: boolean;
+  momentum: "POSITIVE" | "NEUTRAL" | "NEGATIVE";
+}
+
+
+Rules (example, tuneable):
+
+Above 200DMA + rising slope → UP
+
+Below 200DMA → DOWN
+
+Mixed → SIDEWAYS
+
+BREADTH EVALUATION
+
+Implement:
+
+% of stocks above 200DMA
+
+Advance / Decline ratio
+
+New highs vs new lows ratio
+
+Translate into:
+
+breadthHealth: "STRONG" | "NEUTRAL" | "WEAK";
+
+SECTOR LEADERSHIP
+
+Track major sectors:
+
+Technology
+
+Financials
+
+Energy
+
+Healthcare
+
+Consumer Discretionary
+
+Industrials
+
+Each sector:
+
+interface SectorState {
+  name: string;
+  trend: "LEADING" | "LAGGING" | "NEUTRAL";
+  relativeStrength: number;
+}
+
+MARKET REGIME DETERMINATION (CRITICAL)
+
+Combine:
+
+Index trends
+
+Breadth health
+
+Volatility proxy (e.g., VIX level or SPY ATR expansion)
+
+Example logic:
+
+Majority indices UP + strong breadth → RISK_ON
+
+Mixed signals → NEUTRAL
+
+Majority DOWN + weak breadth → RISK_OFF
+
+Include:
+
+regimeReasons: string[];
+
+CACHING & PERFORMANCE
+
+Market context refresh every 5–10 minutes
+
+Cached globally
+
+Reused by all symbol evaluations
+
+INTEGRATION WITH STRATEGY ENGINES
+
+Update both horizon evaluators to accept:
+
+evaluate(stockSnapshot, marketContext)
+
+
+Rules:
+
+RISK_OFF → downgrade aggressive signals
+
+RISK_ON → allow full scoring
+
+NEUTRAL → apply mild penalties
+
+DO NOT hard-block trades unless explicitly designed.
+
+UI: HOME DASHBOARD (MINIMAL, CLEAN)
+
+Create / homepage with:
+
+1️⃣ Market Overview
+
+Current regime badge (Green / Yellow / Red)
+
+Confidence level
+
+2️⃣ Index Trends
+
+Simple cards for SPY / QQQ / DIA / IWM
+
+3️⃣ Breadth Snapshot
+
+% above 200DMA
+
+Advance/Decline
+
+4️⃣ Sector Heatmap
+
+Color-coded sectors
+
+Clickable (future use)
+
+Keep UI:
+
+Light theme
+
+Clean
+
+Informational (not noisy)
+
+ERROR HANDLING
+
+If any market data missing:
+
+Lower confidence
+
+Do NOT crash
+
+Explain uncertainty
+
+FINAL VALIDATION CHECKLIST
+
+After this phase:
+
+Market regime is explicit (not UNKNOWN)
+
+Strategy engines stop defaulting to WATCH
+
+Some stocks naturally qualify as GREEN
+
+Global market conditions are visible & explainable
+
+WHAT NOT TO DO
+
+❌ Do NOT:
+
+Add portfolio logic
+
+Add alerts
+
+Add execution logic
+
+Over-optimize visuals
+
+END OF PROMPT
