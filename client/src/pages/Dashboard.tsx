@@ -56,7 +56,6 @@ function CapitalActionsCard({ stocks }: CapitalActionsProps) {
   const pilotCount = stocks.filter(s => s.capitalPriority === "PILOT").length;
   const blockedCount = stocks.filter(s => s.capitalPriority === "BLOCKED").length;
   
-  // Only show if we have Phase 2 data
   if (!stocks.some(s => s.capitalPriority)) return null;
   
   return (
@@ -64,24 +63,24 @@ function CapitalActionsCard({ stocks }: CapitalActionsProps) {
       <CardContent className="p-4">
         <div className="flex items-center gap-2 mb-3">
           <Target className="w-4 h-4 text-muted-foreground" />
-          <h3 className="text-sm font-medium text-muted-foreground">Capital Actions</h3>
+          <h3 className="text-sm font-medium text-muted-foreground">What You Can Do</h3>
         </div>
         <div className="grid grid-cols-4 gap-4">
           <div className="text-center">
             <p className="text-xl font-bold text-green-600 dark:text-green-400" data-testid="text-buy-count">{buyCount}</p>
-            <p className="text-xs text-muted-foreground">BUY</p>
+            <p className="text-xs text-muted-foreground">Good to Act</p>
           </div>
           <div className="text-center">
             <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400" data-testid="text-accumulate-count">{accumulateCount}</p>
-            <p className="text-xs text-muted-foreground">ACCUMULATE</p>
+            <p className="text-xs text-muted-foreground">Add Gradually</p>
           </div>
           <div className="text-center">
             <p className="text-xl font-bold text-blue-600 dark:text-blue-400" data-testid="text-pilot-count">{pilotCount}</p>
-            <p className="text-xs text-muted-foreground">PILOT</p>
+            <p className="text-xs text-muted-foreground">Small Look</p>
           </div>
           <div className="text-center">
             <p className="text-xl font-bold text-gray-500" data-testid="text-blocked-count">{blockedCount}</p>
-            <p className="text-xs text-muted-foreground">BLOCKED</p>
+            <p className="text-xs text-muted-foreground">Pause</p>
           </div>
         </div>
       </CardContent>
@@ -90,19 +89,19 @@ function CapitalActionsCard({ stocks }: CapitalActionsProps) {
 }
 
 function getStrategicSubtitle(avgScore: number, regime?: string): string {
-  if (regime === "RISK_OFF") return "Cautious market environment";
-  if (regime === "RISK_ON") return "Favorable conditions for positions";
-  if (avgScore >= 70) return "Strong setup across universe";
-  if (avgScore >= 50) return "Mixed signals, selectivity key";
-  return "Patience recommended";
+  if (regime === "RISK_OFF") return "Market being cautious";
+  if (regime === "RISK_ON") return "Good conditions for investing";
+  if (avgScore >= 70) return "Strong companies overall";
+  if (avgScore >= 50) return "Mixed picture, be selective";
+  return "Patience is wise right now";
 }
 
 function getTacticalSubtitle(avgScore: number, regime?: string): string {
-  if (regime === "RISK_OFF") return "Limited short-term setups";
-  if (regime === "RISK_ON") return "Multiple momentum opportunities";
-  if (avgScore >= 70) return "Active trading environment";
-  if (avgScore >= 50) return "Selective opportunities available";
-  return "Few clean entries";
+  if (regime === "RISK_OFF") return "Few good moments right now";
+  if (regime === "RISK_ON") return "Several good opportunities";
+  if (avgScore >= 70) return "Good timing conditions";
+  if (avgScore >= 50) return "Some opportunities available";
+  return "Better to wait";
 }
 
 function StatsCards({ stocks, marketRegime }: StatsCardsProps) {
@@ -128,9 +127,9 @@ function StatsCards({ stocks, marketRegime }: StatsCardsProps) {
           </div>
           <div>
             <p className="text-2xl font-bold" data-testid="text-eligible-count">{eligibleCount}</p>
-            <p className="text-xs text-muted-foreground">Trade Eligible</p>
+            <p className="text-xs text-muted-foreground">Ready Now</p>
             <p className="text-[10px] text-muted-foreground/70 mt-0.5">
-              {eligibleCount > 0 ? "Short-term momentum setups" : "No setups currently"}
+              {eligibleCount > 0 ? "Good timing right now" : "None ready at the moment"}
             </p>
           </div>
         </CardContent>
@@ -142,9 +141,9 @@ function StatsCards({ stocks, marketRegime }: StatsCardsProps) {
           </div>
           <div>
             <p className="text-2xl font-bold" data-testid="text-watch-count">{watchCount}</p>
-            <p className="text-xs text-muted-foreground">On Watch</p>
+            <p className="text-xs text-muted-foreground">Keep Watching</p>
             <p className="text-[10px] text-muted-foreground/70 mt-0.5">
-              {watchCount > 0 ? "Waiting for confirmation" : "All stocks decided"}
+              {watchCount > 0 ? "Waiting for better moment" : "All stocks evaluated"}
             </p>
           </div>
         </CardContent>
@@ -156,7 +155,7 @@ function StatsCards({ stocks, marketRegime }: StatsCardsProps) {
           </div>
           <div>
             <p className="text-2xl font-bold" data-testid="text-strategic-avg">{avgStrategicScore}</p>
-            <p className="text-xs text-muted-foreground">Avg Strategic</p>
+            <p className="text-xs text-muted-foreground">Long-Term Score</p>
             <p className="text-[10px] text-muted-foreground/70 mt-0.5">
               {getStrategicSubtitle(avgStrategicScore, marketRegime)}
             </p>
@@ -170,7 +169,7 @@ function StatsCards({ stocks, marketRegime }: StatsCardsProps) {
           </div>
           <div>
             <p className="text-2xl font-bold" data-testid="text-tactical-avg">{avgTacticalScore}</p>
-            <p className="text-xs text-muted-foreground">Avg Tactical</p>
+            <p className="text-xs text-muted-foreground">Timing Score</p>
             <p className="text-[10px] text-muted-foreground/70 mt-0.5">
               {getTacticalSubtitle(avgTacticalScore, marketRegime)}
             </p>
@@ -192,10 +191,10 @@ export default function Dashboard() {
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold tracking-tight" data-testid="text-dashboard-title">
-              Stock Dashboard
+              Your Stocks
             </h1>
             <p className="text-muted-foreground mt-1">
-              Evaluate stocks across strategic and tactical trading horizons
+              See which stocks look strong and when the timing might be right
             </p>
           </div>
           {data && (

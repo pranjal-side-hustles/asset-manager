@@ -9,19 +9,35 @@ import { Phase2Explainer } from "./Phase2Explainer";
 import { Badge } from "@/components/ui/badge";
 import type { DashboardStock } from "@shared/types";
 
+const horizonLabelMapping: Record<string, string> = {
+  "High Conviction + Actionable": "Strong & Ready to Go",
+  "Strong Business – Wait for Setup": "Good Company, Wait for Better Timing",
+  "Short-Term Opportunity Only": "Short-Term Chance Only",
+  "Developing – Monitor Both": "Still Developing, Keep Watching",
+  "Not Actionable": "Not the Right Time",
+};
+
+function getPlainLabel(label?: string): string {
+  if (!label) return "";
+  for (const [key, value] of Object.entries(horizonLabelMapping)) {
+    if (label.includes(key)) return value;
+  }
+  return label;
+}
+
 function getHorizonLabelStyle(label?: string) {
   if (!label) return { color: "text-muted-foreground", icon: null };
   
-  if (label.includes("High Conviction + Actionable")) {
+  if (label.includes("High Conviction + Actionable") || label.includes("Strong & Ready")) {
     return { color: "text-stock-eligible", icon: Target };
   }
-  if (label.includes("Strong Business")) {
+  if (label.includes("Strong Business") || label.includes("Good Company")) {
     return { color: "text-stock-eligible/70", icon: Clock };
   }
-  if (label.includes("Short-Term Opportunity")) {
+  if (label.includes("Short-Term Opportunity") || label.includes("Short-Term Chance")) {
     return { color: "text-stock-watch", icon: BarChart3 };
   }
-  if (label.includes("Developing")) {
+  if (label.includes("Developing") || label.includes("Still Developing")) {
     return { color: "text-muted-foreground", icon: Clock };
   }
   return { color: "text-stock-reject/70", icon: AlertTriangle };
@@ -66,7 +82,8 @@ export function StockCard({ stock }: StockCardProps) {
                         stock.sectorRegime === "AVOID" ? "text-stock-reject" :
                         "text-stock-watch"
                       )}>
-                        ({stock.sectorRegime})
+                        ({stock.sectorRegime === "FAVORED" ? "Doing Well" : 
+                          stock.sectorRegime === "AVOID" ? "Struggling" : "Mixed"})
                       </span>
                     )}
                   </>
@@ -76,7 +93,10 @@ export function StockCard({ stock }: StockCardProps) {
               </p>
               <p className="text-xs min-h-[16px]">
                 {stock.portfolioAction && stock.portfolioAction !== "ALLOW" ? (
-                  <span className="text-stock-watch">Portfolio: {stock.portfolioAction}</span>
+                  <span className="text-stock-watch">
+                    {stock.portfolioAction === "BLOCK" ? "Risk limit reached" : 
+                     stock.portfolioAction === "REDUCE" ? "Consider smaller size" : stock.portfolioAction}
+                  </span>
                 ) : (
                   <span className="invisible">Portfolio</span>
                 )}
@@ -116,7 +136,7 @@ export function StockCard({ stock }: StockCardProps) {
                   <>
                     {Icon && <Icon className={cn("w-3.5 h-3.5", color)} />}
                     <span className={cn("text-xs font-medium", color)} data-testid={`text-horizon-label-${stock.symbol.toLowerCase()}`}>
-                      {stock.horizonLabel}
+                      {getPlainLabel(stock.horizonLabel)}
                     </span>
                   </>
                 );
@@ -137,7 +157,7 @@ export function StockCard({ stock }: StockCardProps) {
           <div className="grid grid-cols-2 gap-4 pt-4 border-t border-border/50 flex-1">
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-xs text-muted-foreground">Strategic</span>
+                <span className="text-xs text-muted-foreground">Long-Term Strength</span>
                 <StatusBadge
                   status={stock.strategicStatus}
                   size="sm"
@@ -162,7 +182,7 @@ export function StockCard({ stock }: StockCardProps) {
               {stock.strategicLabels && (
                 <div className="flex gap-1 flex-wrap">
                   <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4">
-                    Conviction: {stock.strategicLabels.fundamentalConviction}
+                    Confidence: {stock.strategicLabels.fundamentalConviction}
                   </Badge>
                 </div>
               )}
@@ -170,7 +190,7 @@ export function StockCard({ stock }: StockCardProps) {
 
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-xs text-muted-foreground">Tactical</span>
+                <span className="text-xs text-muted-foreground">Right-Now Timing</span>
                 <StatusBadge
                   status={stock.tacticalStatus}
                   size="sm"
@@ -195,7 +215,7 @@ export function StockCard({ stock }: StockCardProps) {
               {stock.tacticalLabels && (
                 <div className="flex gap-1 flex-wrap">
                   <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4">
-                    Setup: {stock.tacticalLabels.technicalSetup}
+                    Readiness: {stock.tacticalLabels.technicalSetup}
                   </Badge>
                 </div>
               )}

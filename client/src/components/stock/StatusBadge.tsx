@@ -11,11 +11,11 @@ interface StatusBadgeProps {
 }
 
 const statusConfig: Record<string, { label: string; variant: "eligible" | "watch" | "reject" }> = {
-  ELIGIBLE: { label: "Eligible", variant: "eligible" },
-  TRADE: { label: "Trade", variant: "eligible" },
-  WATCH: { label: "Watch", variant: "watch" },
-  REJECT: { label: "Reject", variant: "reject" },
-  AVOID: { label: "Avoid", variant: "reject" },
+  ELIGIBLE: { label: "Looking Strong", variant: "eligible" },
+  TRADE: { label: "Ready Now", variant: "eligible" },
+  WATCH: { label: "Keep Watching", variant: "watch" },
+  REJECT: { label: "Pause for Now", variant: "reject" },
+  AVOID: { label: "Not Right Now", variant: "reject" },
 };
 
 function getRegimeContext(status: string, marketRegime?: MarketRegime): string | null {
@@ -23,37 +23,37 @@ function getRegimeContext(status: string, marketRegime?: MarketRegime): string |
   
   if (marketRegime === "RISK_OFF") {
     if (status === "TRADE" || status === "ELIGIBLE") {
-      return "Despite Risk-Off";
+      return "Strong despite cautious market";
     }
     if (status === "WATCH") {
-      return "Regime Headwind";
+      return "Market conditions challenging";
     }
     if (status === "REJECT" || status === "AVOID") {
-      return "Structure Broken";
+      return "Best to wait";
     }
   }
   
   if (marketRegime === "RISK_ON") {
     if (status === "TRADE" || status === "ELIGIBLE") {
-      return "Regime Tailwind";
+      return "Market supports this";
     }
     if (status === "WATCH") {
-      return "Needs Confirmation";
+      return "Almost ready";
     }
     if (status === "REJECT" || status === "AVOID") {
-      return "Technical Breakdown";
+      return "Needs improvement";
     }
   }
   
   if (marketRegime === "NEUTRAL") {
     if (status === "TRADE" || status === "ELIGIBLE") {
-      return "Mixed Market";
+      return "Good in mixed market";
     }
     if (status === "WATCH") {
-      return "Selective Entry";
+      return "Be selective";
     }
     if (status === "REJECT" || status === "AVOID") {
-      return "Weak Setup";
+      return "Not ready yet";
     }
   }
   

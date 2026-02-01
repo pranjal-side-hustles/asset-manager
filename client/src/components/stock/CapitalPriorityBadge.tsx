@@ -14,11 +14,11 @@ const priorityStyles: Record<Props["priority"], string> = {
 };
 
 const priorityLabels: Record<Props["priority"], string> = {
-  BUY: "Buy",
-  ACCUMULATE: "Accumulate",
-  PILOT: "Pilot",
-  WATCH: "Watch",
-  BLOCKED: "Capital Blocked",
+  BUY: "Good to Act Now",
+  ACCUMULATE: "Add Gradually",
+  PILOT: "Worth a Small Look",
+  WATCH: "Keep an Eye On",
+  BLOCKED: "Pause – Risk Limit Reached",
 };
 
 export function CapitalPriorityBadge({ priority }: Props) {

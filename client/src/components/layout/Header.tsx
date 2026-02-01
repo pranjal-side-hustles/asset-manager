@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useState, useRef, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
+import { HowItWorksModal } from "@/components/HowItWorksModal";
 
 interface SearchResult {
   symbol: string;
@@ -181,6 +182,7 @@ export function Header() {
           </div>
 
           <nav className="flex items-center gap-2">
+            <HowItWorksModal />
             <Button
               variant="ghost"
               size="sm"

@@ -28,20 +28,26 @@ import type {
 function RegimeBadge({ regime, confidence }: { regime: MarketContext["regime"]; confidence: string }) {
   const regimeConfig = {
     RISK_ON: {
-      label: "Risk On",
+      label: "Market Confident",
       className: "bg-stock-eligible/20 text-stock-eligible border-stock-eligible/30",
       icon: TrendingUp,
     },
     RISK_OFF: {
-      label: "Risk Off",
+      label: "Market Cautious",
       className: "bg-stock-reject/20 text-stock-reject border-stock-reject/30",
       icon: TrendingDown,
     },
     NEUTRAL: {
-      label: "Neutral",
+      label: "Market Mixed",
       className: "bg-stock-watch/20 text-stock-watch border-stock-watch/30",
       icon: Minus,
     },
+  };
+
+  const confidenceLabels: Record<string, string> = {
+    HIGH: "strong signal",
+    MEDIUM: "moderate signal",
+    LOW: "weak signal",
   };
 
   const config = regimeConfig[regime];
@@ -53,7 +59,7 @@ function RegimeBadge({ regime, confidence }: { regime: MarketContext["regime"]; 
         <Icon className="w-3.5 h-3.5" />
         {config.label}
       </Badge>
-      <span className="text-xs text-muted-foreground">({confidence} confidence)</span>
+      <span className="text-xs text-muted-foreground">({confidenceLabels[confidence] || confidence})</span>
     </div>
   );
 }
@@ -84,7 +90,7 @@ function IndexCard({ index }: { index: IndexState }) {
           variant="outline" 
           className={`text-[10px] px-1.5 py-0 ${index.above200DMA ? "text-stock-eligible border-stock-eligible/30" : "text-stock-reject border-stock-reject/30"}`}
         >
-          {index.above200DMA ? "Above" : "Below"} 200DMA
+          {index.above200DMA ? "Healthy trend" : "Below trend"}
         </Badge>
       </div>
     </div>
@@ -100,21 +106,27 @@ function BreadthSection({ breadth }: { breadth: BreadthData }) {
 
   const config = healthConfig[breadth.health];
 
+  const healthLabels: Record<string, string> = {
+    STRONG: "Strong",
+    NEUTRAL: "Mixed",
+    WEAK: "Weak",
+  };
+
   return (
     <div className="space-y-3" data-testid="section-breadth">
       <div className="flex items-center justify-between">
-        <span className="text-sm font-medium">Market Breadth</span>
+        <span className="text-sm font-medium">How Many Stocks Are Doing Well</span>
         <Badge 
           variant="outline" 
           className={`${config.color} border-current/30`}
         >
-          {breadth.health}
+          {healthLabels[breadth.health] || breadth.health}
         </Badge>
       </div>
       <div className="space-y-2">
         <div>
           <div className="flex justify-between text-xs mb-1">
-            <span className="text-muted-foreground">Stocks Above 200DMA</span>
+            <span className="text-muted-foreground">Stocks in healthy trends</span>
             <span className="font-medium">{breadth.pctAbove200DMA.toFixed(1)}%</span>
           </div>
           <div className="h-2 bg-muted rounded-full overflow-hidden">
@@ -126,11 +138,11 @@ function BreadthSection({ breadth }: { breadth: BreadthData }) {
         </div>
         <div className="grid grid-cols-2 gap-4 text-xs">
           <div>
-            <span className="text-muted-foreground">A/D Ratio</span>
+            <span className="text-muted-foreground">Winners vs Losers</span>
             <p className="font-medium">{breadth.advanceDeclineRatio.toFixed(2)}</p>
           </div>
           <div>
-            <span className="text-muted-foreground">NH/NL Ratio</span>
+            <span className="text-muted-foreground">New Highs vs Lows</span>
             <p className="font-medium">{breadth.newHighsLowsRatio.toFixed(2)}</p>
           </div>
         </div>
@@ -145,7 +157,7 @@ function VolatilitySection({ volatility }: { volatility: MarketContext["volatili
       <Gauge className={`w-5 h-5 ${volatility.isElevated ? "text-stock-reject" : "text-stock-eligible"}`} />
       <div className="flex-1">
         <div className="flex items-center justify-between">
-          <span className="text-sm font-medium">VIX</span>
+          <span className="text-sm font-medium">Fear Level</span>
           <div className="flex items-center gap-1">
             <span className="text-lg font-bold">{volatility.vixLevel.toFixed(1)}</span>
             <TrendIcon trend={volatility.vixTrend} />
@@ -154,7 +166,7 @@ function VolatilitySection({ volatility }: { volatility: MarketContext["volatili
         {volatility.isElevated && (
           <div className="flex items-center gap-1 text-xs text-stock-reject mt-1">
             <AlertTriangle className="w-3 h-3" />
-            Elevated volatility
+            Market is nervous
           </div>
         )}
       </div>
@@ -168,10 +180,10 @@ function SectorHeatmap({ sectors }: { sectors: SectorState[] }) {
 
   return (
     <div className="space-y-3" data-testid="section-sectors">
-      <span className="text-sm font-medium">Sector Leadership</span>
+      <span className="text-sm font-medium">Which Sectors Are Doing Well</span>
       <div className="space-y-2">
         <div>
-          <span className="text-xs text-muted-foreground">Leading</span>
+          <span className="text-xs text-muted-foreground">Doing Best</span>
           <div className="flex flex-wrap gap-1 mt-1">
             {topSectors.filter(s => s.trend === "LEADING").map(sector => (
               <Badge 
@@ -183,12 +195,12 @@ function SectorHeatmap({ sectors }: { sectors: SectorState[] }) {
               </Badge>
             ))}
             {topSectors.filter(s => s.trend !== "LEADING").length === topSectors.length && (
-              <span className="text-xs text-muted-foreground">No clear leaders</span>
+              <span className="text-xs text-muted-foreground">No clear winners</span>
             )}
           </div>
         </div>
         <div>
-          <span className="text-xs text-muted-foreground">Lagging</span>
+          <span className="text-xs text-muted-foreground">Struggling</span>
           <div className="flex flex-wrap gap-1 mt-1">
             {bottomSectors.filter(s => s.trend === "LAGGING").map(sector => (
               <Badge 
@@ -200,7 +212,7 @@ function SectorHeatmap({ sectors }: { sectors: SectorState[] }) {
               </Badge>
             ))}
             {bottomSectors.filter(s => s.trend !== "LAGGING").length === bottomSectors.length && (
-              <span className="text-xs text-muted-foreground">No clear laggards</span>
+              <span className="text-xs text-muted-foreground">None clearly weak</span>
             )}
           </div>
         </div>
@@ -212,31 +224,31 @@ function SectorHeatmap({ sectors }: { sectors: SectorState[] }) {
 function getRegimeImplication(regime: MarketContext["regime"]): string {
   switch (regime) {
     case "RISK_ON":
-      return "Both strategic and tactical positions favored. Trend following works well.";
+      return "Good conditions for investing. The market mood is positive.";
     case "RISK_OFF":
-      return "Tactical trades favored over strategic. Defensive positioning recommended.";
+      return "The market is being defensive. Consider waiting for better conditions.";
     default:
-      return "Selectivity is key. Wait for clearer signals before committing.";
+      return "The market is uncertain. Being selective is important right now.";
   }
 }
 
 function getIndexSummary(indices: MarketContext["indices"]): string {
   const aboveCount = [indices.spy, indices.qqq, indices.dia, indices.iwm].filter(i => i.above200DMA).length;
-  if (aboveCount >= 3) return `${aboveCount}/4 major indices above 200DMA`;
-  if (aboveCount >= 2) return `Only ${aboveCount}/4 indices above 200DMA`;
-  return `${aboveCount}/4 indices above 200DMA - bearish structure`;
+  if (aboveCount >= 3) return `${aboveCount}/4 major indexes are healthy`;
+  if (aboveCount >= 2) return `Only ${aboveCount}/4 indexes are healthy`;
+  return `Only ${aboveCount}/4 indexes are healthy - market is weak`;
 }
 
 function getBreadthSummary(breadth: BreadthData): string {
   const pct = Math.round(breadth.pctAbove200DMA);
-  if (pct >= 60) return `${pct}% of stocks in uptrends - healthy participation`;
-  if (pct >= 40) return `${pct}% of stocks in uptrends - mixed breadth`;
-  return `Only ${pct}% of stocks in uptrends - narrow leadership`;
+  if (pct >= 60) return `${pct}% of stocks are doing well - broad strength`;
+  if (pct >= 40) return `${pct}% of stocks are doing well - mixed picture`;
+  return `Only ${pct}% of stocks are doing well - narrow strength`;
 }
 
 function getVolatilitySummary(volatility: MarketContext["volatility"]): string {
-  if (volatility.isElevated) return `VIX at ${volatility.vixLevel.toFixed(1)} - elevated fear, expect chop`;
-  return `VIX at ${volatility.vixLevel.toFixed(1)} - calm conditions for trend trades`;
+  if (volatility.isElevated) return `Fear level at ${volatility.vixLevel.toFixed(1)} - market is nervous`;
+  return `Fear level at ${volatility.vixLevel.toFixed(1)} - market is calm`;
 }
 
 function RegimeExplainer({ context }: { context: MarketContext }) {
@@ -256,7 +268,7 @@ function RegimeExplainer({ context }: { context: MarketContext }) {
         data-testid="button-regime-analysis"
       >
         <span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors">
-          View regime analysis ({context.regimeReasons.length} factors)
+          Why is the market feeling this way? ({context.regimeReasons.length} factors)
         </span>
         <ChevronDown 
           className={cn(
@@ -270,7 +282,10 @@ function RegimeExplainer({ context }: { context: MarketContext }) {
         <div className="mt-3 space-y-3" data-testid="section-regime-details">
           <div className="p-3 rounded-lg bg-muted/50 space-y-2">
             <p className="text-sm font-medium">
-              Market is <span className={regimeColors[context.regime]}>{context.regime.replace("_", " ")}</span> because:
+              The market is <span className={regimeColors[context.regime]}>
+                {context.regime === "RISK_ON" ? "feeling confident" : 
+                 context.regime === "RISK_OFF" ? "being cautious" : "mixed"}
+              </span> because:
             </p>
             <ul className="space-y-1 text-xs text-muted-foreground">
               <li className="flex items-start gap-2">
@@ -289,7 +304,7 @@ function RegimeExplainer({ context }: { context: MarketContext }) {
           </div>
           
           <div className="p-3 rounded-lg border border-border/50">
-            <p className="text-xs font-medium mb-1">Implication:</p>
+            <p className="text-xs font-medium mb-1">What This Means for You:</p>
             <p className="text-xs text-muted-foreground">
               {getRegimeImplication(context.regime)}
             </p>
@@ -297,7 +312,7 @@ function RegimeExplainer({ context }: { context: MarketContext }) {
           
           {context.regimeReasons.length > 0 && (
             <div className="text-xs text-muted-foreground">
-              <p className="font-medium mb-1">Raw Scoring Factors:</p>
+              <p className="font-medium mb-1">Details:</p>
               <ul className="space-y-0.5">
                 {context.regimeReasons.map((reason, i) => (
                   <li key={i} className="flex items-start gap-1">
