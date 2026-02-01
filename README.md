@@ -123,6 +123,26 @@ The application will be available at:
 
 ---
 
+## ▲ Vercel: Environment Variables (Secrets)
+
+For the app to load live data on Vercel, add these **Environment Variables** in the dashboard:
+
+1. Open your project on [Vercel](https://vercel.com) → **Settings** → **Environment Variables**.
+2. Add each variable below. Use **Production**, **Preview**, and **Development** as needed.
+
+| Name | Description | Where to get it |
+|------|-------------|-----------------|
+| `FINNHUB_API_KEY` | Finnhub API key (quotes, sentiment, search, volatility, sectors) | [finnhub.io](https://finnhub.io/) – free tier: 60 calls/min |
+| `MARKETSTACK_API_KEY` | Marketstack API key (historical OHLC, quote fallback) | [marketstack.com](https://marketstack.com/) – free tier: 100 calls/month |
+| `FMP_API_KEY` | Financial Modeling Prep (prices, fundamentals, technicals) | [financialmodelingprep.com](https://financialmodelingprep.com/) – free tier: 250 calls/day |
+| `DATABASE_URL` | PostgreSQL connection string (if using DB) | Your Neon/Supabase/Postgres URL |
+
+**Optional:** `TWELVE_DATA_API_KEY` from [twelvedata.com](https://twelvedata.com/) if you use that provider.
+
+After saving, **redeploy** the project (Deployments → ⋮ → Redeploy) so the new variables are applied.
+
+---
+
 ## 📦 Available Scripts
 
 | Command | Description |
