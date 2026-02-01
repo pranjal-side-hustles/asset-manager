@@ -10,29 +10,17 @@ import type { DashboardResponse } from "@shared/types";
 
 function DashboardSkeleton() {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
       {Array.from({ length: 6 }).map((_, i) => (
-        <Card key={i}>
-          <CardContent className="p-5 space-y-4">
-            <div className="flex justify-between">
-              <div className="space-y-2">
-                <Skeleton className="h-6 w-20" />
-                <Skeleton className="h-4 w-32" />
-              </div>
-              <div className="space-y-2">
-                <Skeleton className="h-6 w-24" />
-                <Skeleton className="h-4 w-16" />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4 pt-4 border-t border-border/50">
-              <div className="space-y-2">
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-12 w-12 rounded-full" />
-              </div>
-              <div className="space-y-2">
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-12 w-12 rounded-full" />
-              </div>
+        <Card key={i} className="border-border/40">
+          <CardContent className="p-8 flex flex-col items-center space-y-4">
+            <Skeleton className="h-8 w-24" />
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-16 w-full rounded-xl" />
+            <Skeleton className="h-10 w-28" />
+            <div className="w-full pt-4 border-t border-border/30 flex justify-between">
+              <Skeleton className="h-3 w-16" />
+              <Skeleton className="h-5 w-20 rounded-full" />
             </div>
           </CardContent>
         </Card>
@@ -55,9 +43,9 @@ function CapitalActionsCard({ stocks }: CapitalActionsProps) {
   const accumulateCount = stocks.filter(s => s.capitalPriority === "ACCUMULATE").length;
   const pilotCount = stocks.filter(s => s.capitalPriority === "PILOT").length;
   const blockedCount = stocks.filter(s => s.capitalPriority === "BLOCKED").length;
-  
+
   if (!stocks.some(s => s.capitalPriority)) return null;
-  
+
   return (
     <Card className="mb-6">
       <CardContent className="p-4">
@@ -263,8 +251,8 @@ export default function Dashboard() {
             <MarketContextPanel />
             <StatsCards stocks={data.stocks} marketRegime={data.marketRegime} />
             <CapitalActionsCard stocks={data.stocks} />
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {data.stocks.map((stock) => (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {data.stocks.slice(0, 6).map((stock) => (
                 <StockCard key={stock.symbol} stock={stock} />
               ))}
             </div>
