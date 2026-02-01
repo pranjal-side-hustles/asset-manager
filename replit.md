@@ -213,17 +213,15 @@ server/services/providers/marketstack/
 2. If Marketstack fails → Mark priceStatus.source as "Unavailable", price = 0
 3. Compute all technicals locally from OHLC data (no external API calls)
 4. Use mock fallback for sentiment/options if Finnhub fails
-3. Staleness check: Prices >60 seconds old are flagged with detailed logging
-4. Finnhub: ONLY for sentiment, institutional, options data
 
 ### Key Design Decisions
-- **Twelve Data is ONLY price source** - no fallback to other providers for prices
+- **Marketstack is ONLY price source** - no fallback to other providers for prices
 - Engine execution NEVER blocks due to API failures
-- Price staleness logged with provider, timestamp, age in seconds
+- Price unavailability logged with provider and reason
 - MockProvider provides realistic data for all 9 tracked stocks
 
 ### Environment Variables
-- `TWELVE_DATA_API_KEY`: Required for real-time market data
+- `MARKETSTACK_API_KEY`: Required for EOD price data (paid tier, 100 calls/month)
 - `FINNHUB_API_KEY`: Required for sentiment and options data
 
 ## Recent Features

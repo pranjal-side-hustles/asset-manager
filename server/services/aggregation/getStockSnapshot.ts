@@ -161,9 +161,11 @@ export async function getStockSnapshot(symbol: string): Promise<StockSnapshot | 
       putOpenInterest: options.totalPutOI,
     };
 
+    const priceAvailable = quote.price > 0 && marketData.priceStatus.source !== "Unavailable";
+    
     const confidenceResult = determineConfidence(meta.providersUsed, meta.providersFailed, {
-      priceDataAvailable: true,
-      technicalsAvailable: technicals.rsi !== undefined,
+      priceDataAvailable: priceAvailable,
+      technicalsAvailable: technicals.rsi !== undefined && ohlc.length > 0,
       fundamentalsAvailable: fundamentals.revenueGrowthYoY.length > 0,
       sentimentAvailable: sentiment.analystRating !== undefined,
       optionsAvailable: options.putCallRatio !== undefined,
@@ -205,7 +207,7 @@ export async function getStockSnapshot(symbol: string): Promise<StockSnapshot | 
       meta: {
         dataFreshness: new Date(),
         eodDate: marketData.priceStatus.eodDate || undefined,
-        priceAvailable: quote.price > 0 && marketData.priceStatus.source !== "Unavailable",
+        priceAvailable,
         providersUsed: meta.providersUsed,
         providersFailed: meta.providersFailed,
         confidence: confidenceResult.level,
