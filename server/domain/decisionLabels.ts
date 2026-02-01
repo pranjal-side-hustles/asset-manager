@@ -55,8 +55,8 @@ export function getDecisionLabel(
     if (hasRiskBlocks && riskBlockReasons.length > 0) {
         return {
             label: "PAUSE",
-            displayText: "Pause",
-            explanation: `Risk concerns: ${riskBlockReasons.join("; ")}`,
+            displayText: "Pause for Now",
+            explanation: `Wait due to risk: ${riskBlockReasons[0]}`,
             canAct: false,
             riskBlockReasons,
         };
@@ -66,8 +66,8 @@ export function getDecisionLabel(
     if (marketRegime === "RISK_OFF") {
         return {
             label: "PAUSE",
-            displayText: "Pause",
-            explanation: "Market conditions are unfavorable (Risk-Off regime)",
+            displayText: "Pause for Now",
+            explanation: "Market conditions are not supportive right now",
             canAct: false,
             riskBlockReasons: ["Market regime is Risk-Off"],
         };
@@ -78,7 +78,7 @@ export function getDecisionLabel(
         return {
             label: "GOOD_TO_ACT",
             displayText: "Good to Act Now",
-            explanation: "Timing conditions are favorable with no blocking concerns",
+            explanation: "Trend and confirmation are improving",
             canAct: true,
             riskBlockReasons: [],
         };
@@ -104,17 +104,17 @@ function getKeepAnEyeOnReason(
     const reasons: string[] = [];
 
     if (timingScore < TIMING_THRESHOLD_FOR_ACTION) {
-        reasons.push(`Timing score (${Math.round(timingScore)}) below action threshold (${TIMING_THRESHOLD_FOR_ACTION})`);
+        reasons.push(`Strong company, timing still forming`);
     }
 
     if (confirmationLevel === "NONE") {
-        reasons.push("No confirmation from additional signals");
+        reasons.push("Conditions are not yet optimal for action");
     } else if (confirmationLevel === "WEAK") {
-        reasons.push("Only weak confirmation from additional signals");
+        reasons.push("Trend and confirmation are improving");
     }
 
     if (reasons.length === 0) {
-        reasons.push("Conditions are not yet optimal for action");
+        reasons.push("Watch for better setup");
     }
 
     return reasons.join(". ");
@@ -130,11 +130,11 @@ function getKeepAnEyeOnReason(
 export function getDecisionLabelColor(label: DecisionLabel): string {
     switch (label) {
         case "GOOD_TO_ACT":
-            return "#22c55e"; // Green
+            return "#3b82f6"; // Blue (Calm/Trustworthy)
         case "KEEP_AN_EYE_ON":
-            return "#eab308"; // Yellow
+            return "#64748b"; // Slate (Neutral)
         case "PAUSE":
-            return "#ef4444"; // Red
+            return "#94a3b8"; // Light Slate (Passive)
     }
 }
 
