@@ -1,0 +1,191 @@
+Portfolio Constraints & Capital Discipline Engine
+
+(Non-Destructive, Additive Only)
+
+CONTEXT (LOCK THIS IN)
+
+You are extending Deep Dive Stock OS with Phase 2 intelligence.
+
+Absolute Rules (Non-Negotiable)
+
+❌ DO NOT modify Strategic or Tactical scoring logic
+
+❌ DO NOT change thresholds, statuses, or gates
+
+❌ DO NOT refactor existing engines
+
+❌ DO NOT change UI behavior yet
+
+❌ DO NOT rename or move existing files
+
+This prompt only introduces portfolio-aware constraints that will be used later for BUY decisions.
+
+OBJECTIVE (ONE PURPOSE ONLY)
+
+Create a Portfolio Constraints Engine that answers:
+
+“Is there risk capacity to take this position, and at what priority?”
+
+This engine:
+
+Does not change scores
+
+Does not upgrade statuses yet
+
+Produces BLOCK / ALLOW / REDUCE guidance
+
+Will be consumed in Phase 3
+
+FILES TO CREATE (ONLY THESE)
+1️⃣ Portfolio constraint engine
+server/domain/portfolio/portfolioConstraintEngine.ts
+
+2️⃣ Portfolio types
+shared/types/portfolio.ts
+
+
+❌ Do not modify any existing files unless explicitly stated.
+
+TYPE DEFINITIONS (EXACT)
+📍 shared/types/portfolio.ts
+
+Create:
+
+export type PortfolioAction = "ALLOW" | "REDUCE" | "BLOCK";
+
+export interface PortfolioSnapshot {
+  totalCapital: number;
+  sectorExposurePct: Record<string, number>;
+  correlatedExposurePct: Record<string, number>;
+  volatilityUsedPct: number;
+}
+
+export interface PortfolioConstraintResult {
+  action: PortfolioAction;
+  reasons: string[];
+  suggestedPositionSizePct: number;
+}
+
+PORTFOLIO CONSTRAINT ENGINE LOGIC
+📍 server/domain/portfolio/portfolioConstraintEngine.ts
+
+Create the following:
+
+import {
+  PortfolioSnapshot,
+  PortfolioConstraintResult,
+} from "@shared/types/portfolio";
+
+interface ConstraintInputs {
+  sector: string;
+  sectorRegime: "FAVORED" | "NEUTRAL" | "AVOID";
+  expectedVolatilityPct: number;
+}
+
+export function evaluatePortfolioConstraints(
+  portfolio: PortfolioSnapshot,
+  inputs: ConstraintInputs
+): PortfolioConstraintResult {
+  const reasons: string[] = [];
+
+  // Base position sizing (percentage of total capital)
+  let basePositionSize = 10;
+
+  // Sector exposure cap
+  const currentSectorExposure = portfolio.sectorExposurePct[inputs.sector] ?? 0;
+  if (currentSectorExposure >= 25) {
+    return {
+      action: "BLOCK",
+      reasons: ["Sector exposure cap reached"],
+      suggestedPositionSizePct: 0,
+    };
+  }
+
+  // Sector regime adjustment
+  if (inputs.sectorRegime === "AVOID") {
+    return {
+      action: "BLOCK",
+      reasons: ["Sector regime unfavorable"],
+      suggestedPositionSizePct: 0,
+    };
+  }
+
+  if (inputs.sectorRegime === "NEUTRAL") {
+    basePositionSize -= 3;
+    reasons.push("Sector regime neutral — reduced sizing");
+  }
+
+  // Volatility budget
+  if (portfolio.volatilityUsedPct >= 80) {
+    return {
+      action: "BLOCK",
+      reasons: ["Portfolio volatility budget exhausted"],
+      suggestedPositionSizePct: 0,
+    };
+  }
+
+  if (portfolio.volatilityUsedPct >= 60) {
+    basePositionSize -= 4;
+    reasons.push("High portfolio volatility — reduced sizing");
+  }
+
+  // Expected volatility adjustment
+  if (inputs.expectedVolatilityPct > 3) {
+    basePositionSize -= 3;
+    reasons.push("High expected volatility — reduced sizing");
+  }
+
+  const finalSize = Math.max(2, basePositionSize);
+
+  return {
+    action: finalSize < 5 ? "REDUCE" : "ALLOW",
+    reasons,
+    suggestedPositionSizePct: finalSize,
+  };
+}
+
+DESIGN GUARANTEES (WHY THIS IS SAFE)
+
+✅ No scores are touched
+
+✅ No BUY/SELL logic exists yet
+
+✅ No coupling to Strategic/Tactical engines
+
+✅ Pure evaluation based on portfolio state
+
+✅ Can be tested independently with mock data
+
+This engine only enforces realism.
+
+INTEGRATION RULES (VERY IMPORTANT)
+
+❌ DO NOT connect this to stock evaluation yet
+
+❌ DO NOT surface in UI yet
+
+✅ Treat this as a silent validator
+
+✅ Phase 3 will consume this output
+
+VALIDATION CHECKLIST
+
+After running this prompt:
+
+App builds and runs
+
+No change in current stock statuses
+
+You can call evaluatePortfolioConstraints() with mock inputs
+
+Engine returns:
+
+ALLOW, REDUCE, or BLOCK
+
+Clear human-readable reasons
+
+Suggested position size
+
+If anything in Phase 1 changes, the prompt failed.
+
+END OF PROMPT

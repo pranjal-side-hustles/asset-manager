@@ -64,3 +64,30 @@ The application integrates with several third-party financial data providers:
 -   **Finnhub**: Requires a free tier API key.
 -   **FMP**: Requires a valid API key from their current (non-legacy) tier.
 -   **Marketstack**: Requires an HTTPS-enabled (paid tier) API key for production use; the free tier is limited to HTTP.
+
+## Phase 2 Engines (Read-Only Intelligence)
+
+### Sector Regime Engine
+
+Evaluates sector-level market conditions:
+
+```
+shared/types/sectorRegime.ts      # Types
+shared/constants/sectors.ts       # ETF mappings
+server/domain/sectorRegime/       # evaluateSectorRegime()
+```
+
+Labels: FAVORED | NEUTRAL | AVOID
+
+### Portfolio Constraints Engine
+
+Answers: "Is there risk capacity for this position?"
+
+```
+shared/types/portfolio.ts                    # Types
+server/domain/portfolio/portfolioConstraintEngine.ts  # evaluatePortfolioConstraints()
+```
+
+Actions: ALLOW | REDUCE | BLOCK
+
+Both engines are callable independently and NOT integrated into scoring yet.
