@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { StockCard } from "@/components/stock/StockCard";
+import { MarketContextPanel } from "@/components/market";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Activity, TrendingUp, Shield, AlertCircle, RefreshCw } from "lucide-react";
@@ -167,6 +168,7 @@ export default function Dashboard() {
           </>
         ) : data ? (
           <>
+            <MarketContextPanel />
             <StatsCards stocks={data.stocks} />
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {data.stocks.map((stock) => (
