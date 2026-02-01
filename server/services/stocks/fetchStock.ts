@@ -1,9 +1,11 @@
 import type { Stock, StockQuote, DashboardStock, StockEvaluationResponse, StockSnapshot, DataConfidence } from "@shared/types";
+import type { MarketContext } from "@shared/types/marketContext";
 import { getStockSnapshot } from "../aggregation";
 import { evaluateStrategicGrowth } from "../../domain/horizons/strategicGrowth/evaluator";
 import { evaluateTacticalSentinel } from "../../domain/horizons/tacticalSentinel/evaluator";
 import { convertSnapshotToStrategicInputs } from "../../domain/horizons/strategicGrowth/snapshotConverter";
 import { convertSnapshotToTacticalInputs } from "../../domain/horizons/tacticalSentinel/snapshotConverter";
+import { getMarketContext } from "../../domain/marketContext/marketContextEngine";
 import { logger } from "../../infra/logging/logger";
 
 const TRACKED_SYMBOLS = ["AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "TSLA", "JPM", "V"];
@@ -12,6 +14,7 @@ export interface ExtendedStockEvaluationResponse extends StockEvaluationResponse
   dataConfidence: DataConfidence;
   warnings: string[];
   providersUsed: string[];
+  marketRegime?: string;
 }
 
 function snapshotToStock(snapshot: StockSnapshot): Stock {
@@ -59,19 +62,23 @@ export async function fetchStockData(symbol: string): Promise<{ stock: Stock; qu
 }
 
 export async function fetchStockEvaluation(symbol: string): Promise<ExtendedStockEvaluationResponse | null> {
-  const stockData = await fetchStockData(symbol);
+  const [stockData, marketContextSnapshot] = await Promise.all([
+    fetchStockData(symbol),
+    getMarketContext(),
+  ]);
   
   if (!stockData) {
     return null;
   }
   
   const { stock, quote, snapshot } = stockData;
+  const marketContext = marketContextSnapshot.context;
   
   const strategicInputs = convertSnapshotToStrategicInputs(snapshot);
   const tacticalInputs = convertSnapshotToTacticalInputs(snapshot);
   
-  const strategicGrowth = evaluateStrategicGrowth(strategicInputs, symbol);
-  const tacticalSentinel = evaluateTacticalSentinel(tacticalInputs, symbol);
+  const strategicGrowth = evaluateStrategicGrowth(strategicInputs, symbol, marketContext);
+  const tacticalSentinel = evaluateTacticalSentinel(tacticalInputs, symbol, marketContext);
   
   return {
     stock,
@@ -85,14 +92,17 @@ export async function fetchStockEvaluation(symbol: string): Promise<ExtendedStoc
     confidenceReasons: snapshot.meta.confidenceReasons,
     warnings: snapshot.meta.warnings,
     providersUsed: snapshot.meta.providersUsed,
+    marketRegime: marketContext.regime,
   };
 }
 
 export async function fetchDashboardStocks(): Promise<DashboardStock[]> {
-  const results = await Promise.allSettled(
-    TRACKED_SYMBOLS.map(symbol => getStockSnapshot(symbol))
-  );
+  const [results, marketContextSnapshot] = await Promise.all([
+    Promise.allSettled(TRACKED_SYMBOLS.map(symbol => getStockSnapshot(symbol))),
+    getMarketContext(),
+  ]);
   
+  const marketContext = marketContextSnapshot.context;
   const dashboardStocks: DashboardStock[] = [];
   
   for (let i = 0; i < results.length; i++) {
@@ -105,8 +115,8 @@ export async function fetchDashboardStocks(): Promise<DashboardStock[]> {
       const strategicInputs = convertSnapshotToStrategicInputs(snapshot);
       const tacticalInputs = convertSnapshotToTacticalInputs(snapshot);
       
-      const strategicGrowth = evaluateStrategicGrowth(strategicInputs, symbol);
-      const tacticalSentinel = evaluateTacticalSentinel(tacticalInputs, symbol);
+      const strategicGrowth = evaluateStrategicGrowth(strategicInputs, symbol, marketContext);
+      const tacticalSentinel = evaluateTacticalSentinel(tacticalInputs, symbol, marketContext);
       
       dashboardStocks.push({
         symbol: snapshot.symbol,

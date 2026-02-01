@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { fetchStockEvaluation, fetchDashboardStocks } from "./services/stocks/fetchStock";
 import { logger, providerGuard, refreshManager } from "./infra";
 import { ENGINE_VERSIONS } from "./domain/engineMeta";
+import { getMarketContext } from "./domain/marketContext/marketContextEngine";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -48,6 +49,19 @@ export async function registerRoutes(
         { error: error instanceof Error ? error.message : "Unknown error" }
       );
       res.status(500).json({ error: "Failed to fetch stock evaluation" });
+    }
+  });
+
+  app.get("/api/market-context", async (req, res) => {
+    try {
+      const forceRefresh = req.query.refresh === "true";
+      const snapshot = await getMarketContext(forceRefresh);
+      res.json(snapshot);
+    } catch (error) {
+      logger.error("DATA_FETCH", "Error fetching market context", {
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+      res.status(500).json({ error: "Failed to fetch market context" });
     }
   });
 

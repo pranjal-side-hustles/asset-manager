@@ -1,4 +1,5 @@
 import type { StrategicGrowthEvaluation } from "@shared/types/horizon";
+import type { MarketContext } from "@shared/types/marketContext";
 import {
   evaluateRiskGuardrails,
   evaluateMarketRegime,
@@ -19,9 +20,40 @@ export interface StrategicGrowthResult extends StrategicGrowthEvaluation {
     version: string;
     evaluatedAt: Date;
   };
+  regimeAdjustment?: number;
 }
 
-export function evaluateStrategicGrowth(inputs: StrategicInputs, symbol?: string): StrategicGrowthResult {
+function applyRegimeAdjustment(
+  baseScore: number,
+  marketContext?: MarketContext
+): { adjustedScore: number; adjustment: number } {
+  if (!marketContext) {
+    return { adjustedScore: baseScore, adjustment: 0 };
+  }
+
+  let adjustment = 0;
+
+  switch (marketContext.regime) {
+    case "RISK_ON":
+      adjustment = 5;
+      break;
+    case "RISK_OFF":
+      adjustment = -10;
+      break;
+    case "NEUTRAL":
+      adjustment = -2;
+      break;
+  }
+
+  const adjustedScore = Math.max(0, Math.min(100, baseScore + adjustment));
+  return { adjustedScore, adjustment };
+}
+
+export function evaluateStrategicGrowth(
+  inputs: StrategicInputs,
+  symbol?: string,
+  marketContext?: MarketContext
+): StrategicGrowthResult {
   const startTime = Date.now();
   const log = logger.withContext({ 
     symbol, 
@@ -40,18 +72,35 @@ export function evaluateStrategicGrowth(inputs: StrategicInputs, symbol?: string
   };
 
   const evaluation = buildStrategicEvaluation(details);
+  
+  const { adjustedScore, adjustment } = applyRegimeAdjustment(
+    evaluation.score,
+    marketContext
+  );
+
+  const adjustedStatus = adjustedScore >= 70 ? "ELIGIBLE" : adjustedScore >= 50 ? "WATCH" : "REJECT";
+
   const meta = createEngineMetadata("strategicGrowth");
   const duration = Date.now() - startTime;
   
-  log.engineEvaluation(`Evaluation complete: score=${evaluation.score}, status=${evaluation.status}`, {
-    score: evaluation.score,
-    status: evaluation.status,
-    durationMs: duration,
-  });
+  log.engineEvaluation(
+    `Evaluation complete: score=${adjustedScore}, status=${adjustedStatus}${adjustment !== 0 ? `, regime adjustment: ${adjustment > 0 ? "+" : ""}${adjustment}` : ""}`,
+    {
+      score: adjustedScore,
+      baseScore: evaluation.score,
+      status: adjustedStatus,
+      regimeAdjustment: adjustment,
+      regime: marketContext?.regime,
+      durationMs: duration,
+    }
+  );
   
   return {
     ...evaluation,
+    score: adjustedScore,
+    status: adjustedStatus as "ELIGIBLE" | "WATCH" | "REJECT",
     meta,
+    regimeAdjustment: adjustment,
   };
 }
 

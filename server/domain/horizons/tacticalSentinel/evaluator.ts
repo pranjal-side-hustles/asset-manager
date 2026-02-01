@@ -1,4 +1,5 @@
 import type { TacticalSentinelEvaluation } from "@shared/types/horizon";
+import type { MarketContext } from "@shared/types/marketContext";
 import {
   evaluateTechnicalAlignment,
   evaluateMomentumRegime,
@@ -19,9 +20,40 @@ export interface TacticalSentinelResult extends TacticalSentinelEvaluation {
     version: string;
     evaluatedAt: Date;
   };
+  regimeAdjustment?: number;
 }
 
-export function evaluateTacticalSentinel(inputs: TacticalInputs, symbol?: string): TacticalSentinelResult {
+function applyRegimeAdjustment(
+  baseScore: number,
+  marketContext?: MarketContext
+): { adjustedScore: number; adjustment: number } {
+  if (!marketContext) {
+    return { adjustedScore: baseScore, adjustment: 0 };
+  }
+
+  let adjustment = 0;
+
+  switch (marketContext.regime) {
+    case "RISK_ON":
+      adjustment = 8;
+      break;
+    case "RISK_OFF":
+      adjustment = -12;
+      break;
+    case "NEUTRAL":
+      adjustment = -3;
+      break;
+  }
+
+  const adjustedScore = Math.max(0, Math.min(100, baseScore + adjustment));
+  return { adjustedScore, adjustment };
+}
+
+export function evaluateTacticalSentinel(
+  inputs: TacticalInputs,
+  symbol?: string,
+  marketContext?: MarketContext
+): TacticalSentinelResult {
   const startTime = Date.now();
   const log = logger.withContext({ 
     symbol, 
@@ -40,18 +72,35 @@ export function evaluateTacticalSentinel(inputs: TacticalInputs, symbol?: string
   };
 
   const evaluation = buildTacticalEvaluation(details);
+
+  const { adjustedScore, adjustment } = applyRegimeAdjustment(
+    evaluation.score,
+    marketContext
+  );
+
+  const adjustedStatus = adjustedScore >= 70 ? "TRADE" : adjustedScore >= 50 ? "WATCH" : "AVOID";
+
   const meta = createEngineMetadata("tacticalSentinel");
   const duration = Date.now() - startTime;
   
-  log.engineEvaluation(`Evaluation complete: score=${evaluation.score}, status=${evaluation.status}`, {
-    score: evaluation.score,
-    status: evaluation.status,
-    durationMs: duration,
-  });
+  log.engineEvaluation(
+    `Evaluation complete: score=${adjustedScore}, status=${adjustedStatus}${adjustment !== 0 ? `, regime adjustment: ${adjustment > 0 ? "+" : ""}${adjustment}` : ""}`,
+    {
+      score: adjustedScore,
+      baseScore: evaluation.score,
+      status: adjustedStatus,
+      regimeAdjustment: adjustment,
+      regime: marketContext?.regime,
+      durationMs: duration,
+    }
+  );
   
   return {
     ...evaluation,
+    score: adjustedScore,
+    status: adjustedStatus as "TRADE" | "WATCH" | "AVOID",
     meta,
+    regimeAdjustment: adjustment,
   };
 }
 
