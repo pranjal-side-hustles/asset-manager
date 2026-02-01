@@ -148,7 +148,7 @@ function addVariation(base: number, percent: number = 2): number {
 
 export class MockProvider implements MarketDataProvider {
   name = "Mock";
-  private symbolDataCache: Map<string, { quote: PriceQuote; ohlc: OHLCCandle[] }> = new Map();
+  private ohlcCache: Map<string, OHLCCandle[]> = new Map();
 
   isAvailable(): boolean {
     return true;
@@ -158,22 +158,19 @@ export class MockProvider implements MarketDataProvider {
     return MOCK_STOCKS[symbol.toUpperCase()] || getDefaultMockData(symbol);
   }
 
-  private generateConsistentData(symbol: string): { quote: PriceQuote; ohlc: OHLCCandle[] } {
-    const cached = this.symbolDataCache.get(symbol.toUpperCase());
+  private generateOHLC(symbol: string): OHLCCandle[] {
+    const cached = this.ohlcCache.get(symbol.toUpperCase());
     if (cached) return cached;
 
     const mock = this.getMockData(symbol);
     const limit = 100;
     const candles: OHLCCandle[] = [];
     
-    let currentPrice = mock.basePrice * 0.92;
+    let currentPrice = mock.basePrice * 0.90;
 
     for (let i = limit - 1; i >= 0; i--) {
       const timestamp = Date.now() - i * 24 * 60 * 60 * 1000;
-      const targetPrice = i === 0 ? mock.basePrice : currentPrice;
-      const dailyChange = i === 0 
-        ? (mock.basePrice - currentPrice)
-        : (Math.random() - 0.48) * currentPrice * 0.025;
+      const dailyChange = (Math.random() - 0.48) * currentPrice * 0.022;
       
       const open = currentPrice;
       const close = currentPrice + dailyChange;
@@ -192,38 +189,36 @@ export class MockProvider implements MarketDataProvider {
       currentPrice = close;
     }
 
-    const latestCandle = candles[candles.length - 1];
-    const price = latestCandle.close;
-    const previousClose = candles.length > 1 ? candles[candles.length - 2].close : price;
-    const change = parseFloat((price - previousClose).toFixed(2));
-    const changePercent = parseFloat(((change / previousClose) * 100).toFixed(2));
-
-    const quote: PriceQuote = {
-      symbol: mock.symbol,
-      price,
-      change,
-      changePercent,
-      open: latestCandle.open,
-      high: latestCandle.high,
-      low: latestCandle.low,
-      previousClose,
-      volume: latestCandle.volume,
-      timestamp: Date.now(),
-    };
-
-    const result = { quote, ohlc: candles };
-    this.symbolDataCache.set(symbol.toUpperCase(), result);
+    this.ohlcCache.set(symbol.toUpperCase(), candles);
     
     setTimeout(() => {
-      this.symbolDataCache.delete(symbol.toUpperCase());
+      this.ohlcCache.delete(symbol.toUpperCase());
     }, 120000);
 
-    return result;
+    return candles;
   }
 
   async getQuote(symbol: string): Promise<MarketDataResult<PriceQuote>> {
-    const { quote } = this.generateConsistentData(symbol);
-    return success(quote, this.name);
+    const mock = this.getMockData(symbol);
+    const price = mock.basePrice;
+    const change = parseFloat(((Math.random() - 0.5) * price * 0.03).toFixed(2));
+    const changePercent = parseFloat(((change / (price - change)) * 100).toFixed(2));
+
+    return success<PriceQuote>(
+      {
+        symbol: mock.symbol,
+        price,
+        change,
+        changePercent,
+        open: parseFloat((price - change * 0.5).toFixed(2)),
+        high: parseFloat((price * 1.012).toFixed(2)),
+        low: parseFloat((price * 0.988).toFixed(2)),
+        previousClose: parseFloat((price - change).toFixed(2)),
+        volume: Math.floor(10000000 + Math.random() * 50000000),
+        timestamp: Date.now(),
+      },
+      this.name
+    );
   }
 
   async getOHLC(
@@ -231,32 +226,32 @@ export class MockProvider implements MarketDataProvider {
     _interval: string = "1day",
     limit: number = 100
   ): Promise<MarketDataResult<OHLCCandle[]>> {
-    const { ohlc } = this.generateConsistentData(symbol);
+    const ohlc = this.generateOHLC(symbol);
     return success(ohlc.slice(-limit), this.name);
   }
 
   async getTechnicals(symbol: string): Promise<MarketDataResult<TechnicalIndicators>> {
-    const { quote, ohlc } = this.generateConsistentData(symbol);
-    const price = quote.price;
+    const mock = this.getMockData(symbol);
+    const price = mock.basePrice;
+    const ohlc = this.generateOHLC(symbol);
 
     const closes = ohlc.map(c => c.close);
     const sma20 = closes.length >= 20 
       ? closes.slice(-20).reduce((a, b) => a + b, 0) / 20 
-      : price;
+      : price * 0.98;
     const sma50 = closes.length >= 50 
       ? closes.slice(-50).reduce((a, b) => a + b, 0) / 50 
-      : price * 0.97;
+      : price * 0.95;
     const sma200 = closes.length >= 100 
       ? closes.slice(-100).reduce((a, b) => a + b, 0) / 100 
-      : price * 0.92;
+      : price * 0.90;
 
-    const highs = ohlc.slice(-14).map(c => c.high);
-    const lows = ohlc.slice(-14).map(c => c.low);
+    const recentCandles = ohlc.slice(-15);
     const trueRanges: number[] = [];
-    for (let i = 1; i < ohlc.slice(-15).length && i < 14; i++) {
-      const h = highs[i] || 0;
-      const l = lows[i] || 0;
-      const pc = ohlc.slice(-15)[i - 1]?.close || price;
+    for (let i = 1; i < recentCandles.length; i++) {
+      const h = recentCandles[i].high;
+      const l = recentCandles[i].low;
+      const pc = recentCandles[i - 1].close;
       trueRanges.push(Math.max(h - l, Math.abs(h - pc), Math.abs(l - pc)));
     }
     const atr = trueRanges.length > 0 
@@ -277,7 +272,7 @@ export class MockProvider implements MarketDataProvider {
 
     return success<TechnicalIndicators>(
       {
-        rsi: parseFloat(Math.min(80, Math.max(20, rsi)).toFixed(2)),
+        rsi: parseFloat(Math.min(75, Math.max(25, rsi)).toFixed(2)),
         sma20: parseFloat(sma20.toFixed(2)),
         sma50: parseFloat(sma50.toFixed(2)),
         sma200: parseFloat(sma200.toFixed(2)),
