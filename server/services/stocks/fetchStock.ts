@@ -380,6 +380,18 @@ export async function fetchDashboardStocks(): Promise<DashboardStock[]> {
         marketContext.regime
       ),
       marketRegime: marketContext.regime,
+      businessQualitySignals: {
+        fundamentals: s.strategicGrowth.details.fundamentalAcceleration.status,
+        institutional: s.strategicGrowth.details.institutionalSignals.status,
+        macro: s.strategicGrowth.details.macroAlignment.status,
+      },
+      marketTimingSignals: {
+        technical: s.tacticalSentinel.details.technicalAlignment.status,
+        momentum: s.tacticalSentinel.details.momentumRegime.status,
+        sector: s.sectorRegime === "FAVORED" ? "pass" : s.sectorRegime === "AVOID" ? "fail" : "caution",
+        event: s.tacticalSentinel.details.eventProximity.status,
+      },
+      sentimentScore: s.tacticalSentinel.details.sentimentContext.score,
     };
   });
 

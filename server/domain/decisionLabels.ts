@@ -15,6 +15,7 @@
 
 export type DecisionLabel =
     | "GOOD_TO_ACT"
+    | "WORTH_A_SMALL_LOOK"
     | "KEEP_AN_EYE_ON"
     | "PAUSE";
 
@@ -84,6 +85,17 @@ export function getDecisionLabel(
         };
     }
 
+    // Rule: "Worth a Small Look" for intermediate scores
+    if (timingScore >= 50 && !hasRiskBlocks) {
+        return {
+            label: "WORTH_A_SMALL_LOOK",
+            displayText: "Worth a Small Look",
+            explanation: "Conditions are developing positively",
+            canAct: true, // Limited action
+            riskBlockReasons: [],
+        };
+    }
+
     // Rule 2: "Keep an Eye On" is the default - NOT a failure
     return {
         label: "KEEP_AN_EYE_ON",
@@ -130,11 +142,13 @@ function getKeepAnEyeOnReason(
 export function getDecisionLabelColor(label: DecisionLabel): string {
     switch (label) {
         case "GOOD_TO_ACT":
-            return "#3b82f6"; // Blue (Calm/Trustworthy)
+            return "#10b981"; // Muted Green (Emerald 500)
+        case "WORTH_A_SMALL_LOOK":
+            return "#3b82f6"; // Muted Blue (Blue 500)
         case "KEEP_AN_EYE_ON":
-            return "#64748b"; // Slate (Neutral)
+            return "#64748b"; // Slate (Slate 500)
         case "PAUSE":
-            return "#94a3b8"; // Light Slate (Passive)
+            return "#f59e0b"; // Muted Amber (Amber 500)
     }
 }
 
@@ -145,6 +159,8 @@ export function getDecisionLabelIcon(label: DecisionLabel): string {
     switch (label) {
         case "GOOD_TO_ACT":
             return "check-circle";
+        case "WORTH_A_SMALL_LOOK":
+            return "trending-up";
         case "KEEP_AN_EYE_ON":
             return "eye";
         case "PAUSE":

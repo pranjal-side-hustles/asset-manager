@@ -50,9 +50,21 @@ export interface DashboardStock {
   decisionLabel?: {
     displayText: string;
     explanation: string;
-    label: "GOOD_TO_ACT" | "KEEP_AN_EYE_ON" | "PAUSE";
+    label: "GOOD_TO_ACT" | "WORTH_A_SMALL_LOOK" | "KEEP_AN_EYE_ON" | "PAUSE";
   };
   marketRegime?: "RISK_ON" | "RISK_OFF" | "NEUTRAL";
+  businessQualitySignals?: {
+    fundamentals: "pass" | "caution" | "fail";
+    institutional: "pass" | "caution" | "fail";
+    macro: "pass" | "caution" | "fail";
+  };
+  marketTimingSignals?: {
+    technical: "pass" | "caution" | "fail";
+    momentum: "pass" | "caution" | "fail";
+    sector: "pass" | "caution" | "fail";
+    event: "pass" | "caution" | "fail";
+  };
+  sentimentScore?: number;
 }
 
 export interface DashboardResponse {
