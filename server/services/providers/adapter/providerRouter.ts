@@ -31,7 +31,7 @@ async function tryWithFallback<T>(
   dataType: string,
   symbol: string
 ): Promise<MarketDataResult<T>> {
-  const log = logger.withContext({ symbol, dataType });
+  const log = logger.withContext({ symbol });
 
   const primaryResult = await primary();
   if (primaryResult.success && primaryResult.data) {
