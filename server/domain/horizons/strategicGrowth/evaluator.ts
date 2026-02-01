@@ -25,7 +25,7 @@ export interface StrategicGrowthResult extends StrategicGrowthEvaluation {
 
 function applyRegimeAdjustment(
   baseScore: number,
-  marketContext?: MarketContext
+  marketContext?: MarketContext,
 ): { adjustedScore: number; adjustment: number } {
   if (!marketContext) {
     return { adjustedScore: baseScore, adjustment: 0 };
@@ -35,13 +35,13 @@ function applyRegimeAdjustment(
 
   switch (marketContext.regime) {
     case "RISK_ON":
-      adjustment = 5;
-      break;
-    case "RISK_OFF":
-      adjustment = -10;
+      adjustment = 0; // no bonus, just no penalty
       break;
     case "NEUTRAL":
-      adjustment = -2;
+      adjustment = -4; // mild headwind
+      break;
+    case "RISK_OFF":
+      adjustment = -12; // strong headwind, not a kill switch
       break;
   }
 
@@ -52,18 +52,17 @@ function applyRegimeAdjustment(
 export function evaluateStrategicGrowth(
   inputs: StrategicInputs,
   symbol?: string,
-  marketContext?: MarketContext
+  marketContext?: MarketContext,
 ): StrategicGrowthResult {
   const startTime = Date.now();
-  const log = logger.withContext({ 
-    symbol, 
-    engine: "strategicGrowth", 
-    version: ENGINE_VERSIONS.strategicGrowth 
+  const log = logger.withContext({
+    symbol,
+    engine: "strategicGrowth",
+    version: ENGINE_VERSIONS.strategicGrowth,
   });
-  
+
   const details = {
     riskGuardrails: evaluateRiskGuardrails(inputs),
-    marketRegime: evaluateMarketRegime(inputs),
     macroAlignment: evaluateMacroAlignment(inputs),
     institutionalSignals: evaluateInstitutionalSignals(inputs),
     fundamentalAcceleration: evaluateFundamentalAcceleration(inputs),
@@ -72,17 +71,33 @@ export function evaluateStrategicGrowth(
   };
 
   const evaluation = buildStrategicEvaluation(details);
-  
+
   const { adjustedScore, adjustment } = applyRegimeAdjustment(
     evaluation.score,
-    marketContext
+    marketContext,
   );
 
-  const adjustedStatus = adjustedScore >= 70 ? "ELIGIBLE" : adjustedScore >= 50 ? "WATCH" : "REJECT";
+  let adjustedStatus: "ELIGIBLE" | "WATCH" | "REJECT";
+
+  // Base status from score
+  if (adjustedScore >= 65) {
+    adjustedStatus = "ELIGIBLE";
+  } else if (adjustedScore >= 40) {
+    adjustedStatus = "WATCH";
+  } else {
+    adjustedStatus = "REJECT";
+  }
+
+  // Regime-aware downgrade (IMPORTANT)
+  if (marketContext?.regime === "RISK_OFF") {
+    if (adjustedStatus === "ELIGIBLE") {
+      adjustedStatus = "WATCH";
+    }
+  }
 
   const meta = createEngineMetadata("strategicGrowth");
   const duration = Date.now() - startTime;
-  
+
   log.engineEvaluation(
     `Evaluation complete: score=${adjustedScore}, status=${adjustedStatus}${adjustment !== 0 ? `, regime adjustment: ${adjustment > 0 ? "+" : ""}${adjustment}` : ""}`,
     {
@@ -92,9 +107,9 @@ export function evaluateStrategicGrowth(
       regimeAdjustment: adjustment,
       regime: marketContext?.regime,
       durationMs: duration,
-    }
+    },
   );
-  
+
   return {
     ...evaluation,
     score: adjustedScore,
@@ -105,9 +120,11 @@ export function evaluateStrategicGrowth(
 }
 
 export function createMockStrategicInputs(symbol: string): StrategicInputs {
-  const hash = symbol.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const hash = symbol
+    .split("")
+    .reduce((acc, char) => acc + char.charCodeAt(0), 0);
   const seed = hash % 100;
-  
+
   return {
     portfolioConcentration: 10 + (seed % 20),
     sectorExposure: 15 + (seed % 25),
@@ -116,7 +133,8 @@ export function createMockStrategicInputs(symbol: string): StrategicInputs {
     gdpGrowth: 1.5 + (seed % 30) / 10,
     interestRateTrend: seed > 60 ? "falling" : seed > 30 ? "stable" : "rising",
     institutionalOwnership: 50 + (seed % 40),
-    recentInstitutionalActivity: seed > 60 ? "buying" : seed > 30 ? "neutral" : "selling",
+    recentInstitutionalActivity:
+      seed > 60 ? "buying" : seed > 30 ? "neutral" : "selling",
     revenueGrowth: 5 + (seed % 25),
     earningsAcceleration: (seed % 30) - 5,
     weeklyMaAlignment: seed > 40,

@@ -9,7 +9,7 @@ export interface StrategicGrowthEvaluation {
   failureMode: string;
   details: {
     riskGuardrails: EvaluationDetail;
-    marketRegime: EvaluationDetail;
+    marketRegime?: EvaluationDetail; // ✅ OPTIONAL
     macroAlignment: EvaluationDetail;
     institutionalSignals: EvaluationDetail;
     fundamentalAcceleration: EvaluationDetail;
