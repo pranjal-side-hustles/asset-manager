@@ -130,7 +130,7 @@ export function getCacheStats(): { entries: number; symbols: string[] } {
 }
 
 export function isMarketstackAvailable(): boolean {
-  return !!process.env.MARKETSTACK_API_KEY;
+  return !!process.env.MARKETSTACK_API_KEY_1;
 }
 
 export async function fetchMarketstackEOD(symbol: string): Promise<MarketstackEODResult> {
@@ -146,7 +146,7 @@ export async function fetchMarketstackEOD(symbol: string): Promise<MarketstackEO
     };
   }
 
-  const apiKey = process.env.MARKETSTACK_API_KEY;
+  const apiKey = process.env.MARKETSTACK_API_KEY_1;
   
   if (!apiKey) {
     log.providerFailure("MARKETSTACK_API_KEY not configured");
