@@ -10,9 +10,9 @@ import type {
 
 import { fetchFMPPrice, fetchFMPFinancials, fetchFMPTechnicals } from "../providers/fmp";
 import { fetchFinnhubSentiment, fetchFinnhubInstitutional, fetchFinnhubOptions } from "../providers/finnhub";
-import { fetchMarketstackHistorical } from "../providers/marketstack";
+import { fetchMarketstackHistorical, fetchMarketstackQuote } from "../providers/marketstack";
 
-import { normalizeFMPPrice } from "../normalization/normalizePrice";
+import { normalizeFMPPrice, normalizeMarketstackQuote } from "../normalization/normalizePrice";
 import { normalizeFMPFinancials } from "../normalization/normalizeFinancials";
 import { normalizeFMPTechnicals } from "../normalization/normalizeTechnicals";
 import { normalizeFinnhubSentiment, normalizeFinnhubOptions, normalizePutCallRatio } from "../normalization/normalizeSentiment";
@@ -73,7 +73,8 @@ export async function getStockSnapshot(symbol: string): Promise<StockSnapshot | 
     finnhubSentimentResult,
     finnhubInstitutionalResult,
     finnhubOptionsResult,
-    marketstackHistoricalResult
+    marketstackHistoricalResult,
+    marketstackQuoteResult
   ] = await Promise.allSettled([
     fetchFMPPrice(symbol),
     fetchFMPFinancials(symbol),
@@ -81,7 +82,8 @@ export async function getStockSnapshot(symbol: string): Promise<StockSnapshot | 
     fetchFinnhubSentiment(symbol),
     fetchFinnhubInstitutional(symbol),
     fetchFinnhubOptions(symbol),
-    fetchMarketstackHistorical(symbol)
+    fetchMarketstackHistorical(symbol),
+    fetchMarketstackQuote(symbol)
   ]);
 
   const fmpPrice = fmpPriceResult.status === "fulfilled" ? fmpPriceResult.value : null;
@@ -91,12 +93,18 @@ export async function getStockSnapshot(symbol: string): Promise<StockSnapshot | 
   const finnhubInstitutional = finnhubInstitutionalResult.status === "fulfilled" ? finnhubInstitutionalResult.value : null;
   const finnhubOptions = finnhubOptionsResult.status === "fulfilled" ? finnhubOptionsResult.value : null;
   const marketstackHistorical = marketstackHistoricalResult.status === "fulfilled" ? marketstackHistoricalResult.value : null;
+  const marketstackQuote = marketstackQuoteResult.status === "fulfilled" ? marketstackQuoteResult.value : null;
 
   if (fmpPrice) providersUsed.push("FMP-Price");
   else {
     providersFailed.push("FMP-Price");
-    warnings.push("Price data unavailable from primary source");
+    if (!marketstackQuote) {
+      warnings.push("Price data unavailable from primary source");
+    }
   }
+  
+  if (marketstackQuote) providersUsed.push("Marketstack-Quote");
+  else providersFailed.push("Marketstack-Quote");
 
   if (fmpFinancials) providersUsed.push("FMP-Financials");
   else {
@@ -122,16 +130,23 @@ export async function getStockSnapshot(symbol: string): Promise<StockSnapshot | 
   if (marketstackHistorical) providersUsed.push("Marketstack-Historical");
   else providersFailed.push("Marketstack-Historical");
 
-  if (!fmpPrice) {
-    console.warn(`[Aggregator] No price data available for ${symbol}, falling back to mock data`);
+  const normalizedPrice = fmpPrice 
+    ? normalizeFMPPrice(fmpPrice) 
+    : normalizeMarketstackQuote(marketstackQuote, symbol);
+
+  if (!normalizedPrice) {
+    console.warn(`[Aggregator] No price data available for ${symbol} from any provider, falling back to mock data`);
     const mockSnapshot = getMockSnapshot(symbol);
     if (mockSnapshot) {
       stockCache.set(cacheKey, mockSnapshot, CACHE_TTL.SNAPSHOT);
     }
     return mockSnapshot;
   }
-
-  const normalizedPrice = normalizeFMPPrice(fmpPrice);
+  
+  if (!fmpPrice && marketstackQuote) {
+    console.log(`[Aggregator] Using Marketstack quote as fallback for ${symbol}`);
+    warnings.push("Using Marketstack quote data (some details may be limited)");
+  }
   const normalizedFundamentals = normalizeFMPFinancials(fmpFinancials);
   const normalizedTechnicals = normalizeFMPTechnicals(fmpTechnicals, fmpPrice);
   const normalizedSentiment = normalizeFinnhubSentiment(finnhubSentiment, finnhubInstitutional);
