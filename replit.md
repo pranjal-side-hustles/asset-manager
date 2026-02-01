@@ -122,6 +122,43 @@ All three Phase 2 engines are now integrated into the dashboard API and UI:
 For complete technical documentation including all strategies, factors, weights, and decision flows, see:
 - **[STRATEGY_DOCUMENTATION.md](./STRATEGY_DOCUMENTATION.md)** - Comprehensive guide for model recreation
 
+## Phase 3: Engine Calibration
+
+### Horizon Clarity
+The calibration system improves clarity between WHY (Strategic) and WHEN (Tactical) horizons:
+
+- **Strategic Growth (WHY)**: Emphasizes fundamentals with 1.12x multiplier on Fundamental Acceleration factor, and caps technical downside at 20% floor
+- **Tactical Sentinel (WHEN)**: Increases timing sensitivity with multipliers on Technical Alignment (1.08x), Momentum (1.05x), and Event Proximity (1.10x)
+
+### Label Generation
+Labels are derived from factor score percentages (no new scores added):
+
+**Strategic Labels:**
+- `fundamentalConviction`: High | Medium | Low (based on fundamental factor ratio)
+- `technicalAlignment`: Confirming | Neutral | Weak (based on technical factor ratio)
+
+**Tactical Labels:**
+- `technicalSetup`: Strong | Developing | Weak (combined technical + momentum ratio)
+- `eventRisk`: Near | Clear (based on earnings/news proximity)
+
+**Combined Horizon Label:**
+- "High Conviction + Actionable" - Strategic ELIGIBLE + Tactical TRADE
+- "Strong Business – Wait for Setup" - Strategic ELIGIBLE + Tactical non-TRADE
+- "Short-Term Opportunity Only" - Strategic non-ELIGIBLE + Tactical TRADE
+- "Developing – Monitor Both" - Both WATCH status
+- "Not Actionable" - All other combinations
+
+### Integrity Gate
+Binary risk flags for earnings (<5 days) or imminent news events:
+- Strategic: Flag only (informational)
+- Tactical: Score penalty of -5 to -10 points
+
+### Files
+```
+server/domain/calibration.ts           # Calibration constants & label derivation
+server/domain/risk/integrityAudit.ts   # Integrity gate utility
+```
+
 ## Recent Features
 
 ### Stock Search
