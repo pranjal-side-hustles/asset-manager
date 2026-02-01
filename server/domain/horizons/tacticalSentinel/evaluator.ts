@@ -10,8 +10,25 @@ import {
   type TacticalInputs,
 } from "./rules";
 import { buildTacticalEvaluation } from "./scoring";
+import { ENGINE_VERSIONS, createEngineMetadata } from "../../engineMeta";
+import { logger } from "../../../infra/logging/logger";
 
-export function evaluateTacticalSentinel(inputs: TacticalInputs): TacticalSentinelEvaluation {
+export interface TacticalSentinelResult extends TacticalSentinelEvaluation {
+  meta: {
+    engine: string;
+    version: string;
+    evaluatedAt: Date;
+  };
+}
+
+export function evaluateTacticalSentinel(inputs: TacticalInputs, symbol?: string): TacticalSentinelResult {
+  const startTime = Date.now();
+  const log = logger.withContext({ 
+    symbol, 
+    engine: "tacticalSentinel", 
+    version: ENGINE_VERSIONS.tacticalSentinel 
+  });
+  
   const details = {
     technicalAlignment: evaluateTechnicalAlignment(inputs),
     momentumRegime: evaluateMomentumRegime(inputs),
@@ -22,7 +39,20 @@ export function evaluateTacticalSentinel(inputs: TacticalInputs): TacticalSentin
     opportunityRanking: evaluateOpportunityRanking(inputs),
   };
 
-  return buildTacticalEvaluation(details);
+  const evaluation = buildTacticalEvaluation(details);
+  const meta = createEngineMetadata("tacticalSentinel");
+  const duration = Date.now() - startTime;
+  
+  log.engineEvaluation(`Evaluation complete: score=${evaluation.score}, status=${evaluation.status}`, {
+    score: evaluation.score,
+    status: evaluation.status,
+    durationMs: duration,
+  });
+  
+  return {
+    ...evaluation,
+    meta,
+  };
 }
 
 export function createMockTacticalInputs(symbol: string): TacticalInputs {

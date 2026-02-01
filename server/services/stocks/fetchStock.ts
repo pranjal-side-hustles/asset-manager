@@ -4,6 +4,7 @@ import { evaluateStrategicGrowth } from "../../domain/horizons/strategicGrowth/e
 import { evaluateTacticalSentinel } from "../../domain/horizons/tacticalSentinel/evaluator";
 import { convertSnapshotToStrategicInputs } from "../../domain/horizons/strategicGrowth/snapshotConverter";
 import { convertSnapshotToTacticalInputs } from "../../domain/horizons/tacticalSentinel/snapshotConverter";
+import { logger } from "../../infra/logging/logger";
 
 const TRACKED_SYMBOLS = ["AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "TSLA", "JPM", "V"];
 
@@ -46,7 +47,7 @@ export async function fetchStockData(symbol: string): Promise<{ stock: Stock; qu
   const snapshot = await getStockSnapshot(symbol.toUpperCase());
   
   if (!snapshot) {
-    console.warn(`[fetchStockData] No data available for ${symbol}`);
+    logger.withContext({ symbol }).warn("DATA_FETCH", "No data available");
     return null;
   }
   
@@ -69,8 +70,8 @@ export async function fetchStockEvaluation(symbol: string): Promise<ExtendedStoc
   const strategicInputs = convertSnapshotToStrategicInputs(snapshot);
   const tacticalInputs = convertSnapshotToTacticalInputs(snapshot);
   
-  const strategicGrowth = evaluateStrategicGrowth(strategicInputs);
-  const tacticalSentinel = evaluateTacticalSentinel(tacticalInputs);
+  const strategicGrowth = evaluateStrategicGrowth(strategicInputs, symbol);
+  const tacticalSentinel = evaluateTacticalSentinel(tacticalInputs, symbol);
   
   return {
     stock,
@@ -81,6 +82,7 @@ export async function fetchStockEvaluation(symbol: string): Promise<ExtendedStoc
       evaluatedAt: Date.now(),
     },
     dataConfidence: snapshot.meta.confidence,
+    confidenceReasons: snapshot.meta.confidenceReasons,
     warnings: snapshot.meta.warnings,
     providersUsed: snapshot.meta.providersUsed,
   };
@@ -103,8 +105,8 @@ export async function fetchDashboardStocks(): Promise<DashboardStock[]> {
       const strategicInputs = convertSnapshotToStrategicInputs(snapshot);
       const tacticalInputs = convertSnapshotToTacticalInputs(snapshot);
       
-      const strategicGrowth = evaluateStrategicGrowth(strategicInputs);
-      const tacticalSentinel = evaluateTacticalSentinel(tacticalInputs);
+      const strategicGrowth = evaluateStrategicGrowth(strategicInputs, symbol);
+      const tacticalSentinel = evaluateTacticalSentinel(tacticalInputs, symbol);
       
       dashboardStocks.push({
         symbol: snapshot.symbol,
@@ -118,7 +120,7 @@ export async function fetchDashboardStocks(): Promise<DashboardStock[]> {
         tacticalStatus: tacticalSentinel.status,
       });
     } else {
-      console.warn(`[Dashboard] Failed to fetch data for ${symbol}`);
+      logger.withContext({ symbol }).warn("DATA_FETCH", "Failed to fetch data for dashboard");
     }
   }
   

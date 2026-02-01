@@ -93,6 +93,8 @@ export interface StockSnapshotMeta {
   providersUsed: string[];
   providersFailed: string[];
   confidence: DataConfidence;
+  confidenceScore?: number;
+  confidenceReasons?: string[];
   warnings: string[];
 }
 

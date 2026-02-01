@@ -20,6 +20,9 @@ import { normalizeMarketstackHistorical } from "../normalization/normalizeHistor
 
 import { stockCache, CACHE_TTL } from "./cache";
 import { getMockSnapshot } from "./mockFallback";
+import { logger, providerGuard } from "../../infra";
+import { evaluateConfidence, type ConfidenceResult } from "../../domain/confidence/confidenceEvaluator";
+import { ENGINE_VERSIONS } from "../../domain/engineMeta";
 
 const DEFAULT_FUNDAMENTALS: StockFundamentals = {
   revenueGrowthYoY: [],
@@ -42,25 +45,36 @@ const DEFAULT_OPTIONS: StockOptions = {};
 
 function determineConfidence(
   providersUsed: string[],
-  providersFailed: string[]
-): DataConfidence {
-  const successRate = providersUsed.length / (providersUsed.length + providersFailed.length);
+  providersFailed: string[],
+  inputs: {
+    priceDataAvailable: boolean;
+    technicalsAvailable: boolean;
+    fundamentalsAvailable: boolean;
+    sentimentAvailable: boolean;
+    optionsAvailable: boolean;
+  }
+): { level: DataConfidence; result: ConfidenceResult } {
+  const result = evaluateConfidence({
+    providersUsed,
+    providersFailed,
+    ...inputs,
+  });
   
-  if (successRate >= 0.8) return "HIGH";
-  if (successRate >= 0.5) return "MEDIUM";
-  return "LOW";
+  return { level: result.level, result };
 }
 
 export async function getStockSnapshot(symbol: string): Promise<StockSnapshot | null> {
   const cacheKey = `snapshot:${symbol}`;
   const cached = stockCache.get<StockSnapshot>(cacheKey);
   
+  const log = logger.withContext({ symbol });
+  
   if (cached) {
-    console.log(`[Cache] Using cached snapshot for ${symbol}`);
+    log.cacheHit("Using cached snapshot");
     return cached;
   }
 
-  console.log(`[Aggregator] Fetching fresh data for ${symbol}`);
+  log.cacheMiss("Fetching fresh data");
 
   const providersUsed: string[] = [];
   const providersFailed: string[] = [];
@@ -145,7 +159,10 @@ export async function getStockSnapshot(symbol: string): Promise<StockSnapshot | 
   }
 
   if (!normalizedPrice) {
-    console.warn(`[Aggregator] No price data available for ${symbol} from any provider, falling back to mock data`);
+    log.fallback("No price data from any provider, falling back to mock data");
+    providerGuard.recordFailure("Finnhub");
+    providerGuard.recordFailure("FMP");
+    providerGuard.recordFailure("Marketstack");
     const mockSnapshot = getMockSnapshot(symbol);
     if (mockSnapshot) {
       stockCache.set(cacheKey, mockSnapshot, CACHE_TTL.SNAPSHOT);
@@ -153,7 +170,7 @@ export async function getStockSnapshot(symbol: string): Promise<StockSnapshot | 
     return mockSnapshot;
   }
   
-  console.log(`[Aggregator] Using ${priceSource} quote for ${symbol}: $${normalizedPrice.price}`);
+  log.dataFetch(`Using ${priceSource} quote: $${normalizedPrice.price}`, { provider: priceSource, price: normalizedPrice.price });
   const normalizedFundamentals = normalizeFMPFinancials(fmpFinancials);
   const normalizedTechnicals = normalizeFMPTechnicals(fmpTechnicals, fmpPrice);
   const normalizedSentiment = normalizeFinnhubSentiment(finnhubSentiment, finnhubInstitutional);
@@ -198,14 +215,34 @@ export async function getStockSnapshot(symbol: string): Promise<StockSnapshot | 
 
     historicalPrices: normalizedHistorical,
 
-    meta: {
-      dataFreshness: new Date(),
-      providersUsed,
-      providersFailed,
-      confidence: determineConfidence(providersUsed, providersFailed),
-      warnings,
-    },
+    meta: (() => {
+      const confidenceResult = determineConfidence(providersUsed, providersFailed, {
+        priceDataAvailable: !!normalizedPrice,
+        technicalsAvailable: !!fmpTechnicals,
+        fundamentalsAvailable: !!fmpFinancials,
+        sentimentAvailable: !!finnhubSentiment,
+        optionsAvailable: !!finnhubOptions,
+      });
+      return {
+        dataFreshness: new Date(),
+        providersUsed,
+        providersFailed,
+        confidence: confidenceResult.level,
+        confidenceScore: confidenceResult.result.score,
+        confidenceReasons: confidenceResult.result.reasons,
+        warnings,
+      };
+    })(),
   };
+
+  for (const provider of providersUsed) {
+    const providerName = provider.split("-")[0];
+    providerGuard.recordSuccess(providerName);
+  }
+  for (const provider of providersFailed) {
+    const providerName = provider.split("-")[0];
+    providerGuard.recordFailure(providerName);
+  }
 
   stockCache.set(cacheKey, snapshot, CACHE_TTL.SNAPSHOT);
 

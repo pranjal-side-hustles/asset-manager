@@ -1,6 +1,8 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { fetchStockEvaluation, fetchDashboardStocks } from "./services/stocks/fetchStock";
+import { logger, providerGuard, refreshManager } from "./infra";
+import { ENGINE_VERSIONS } from "./domain/engineMeta";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -15,7 +17,9 @@ export async function registerRoutes(
         lastUpdated: Date.now(),
       });
     } catch (error) {
-      console.error("Error fetching dashboard data:", error);
+      logger.error("DATA_FETCH", "Error fetching dashboard data", { 
+        error: error instanceof Error ? error.message : "Unknown error" 
+      });
       res.status(500).json({ error: "Failed to fetch dashboard data" });
     }
   });
@@ -38,8 +42,62 @@ export async function registerRoutes(
       
       res.json(evaluation);
     } catch (error) {
-      console.error("Error fetching stock evaluation:", error);
+      logger.withContext({ symbol: req.params.symbol }).error(
+        "DATA_FETCH", 
+        "Error fetching stock evaluation",
+        { error: error instanceof Error ? error.message : "Unknown error" }
+      );
       res.status(500).json({ error: "Failed to fetch stock evaluation" });
+    }
+  });
+
+  app.get("/api/infra/health", async (req, res) => {
+    try {
+      const providerHealth = providerGuard.getAllHealth();
+      const schedulerStatus = refreshManager.getStatus();
+      const recentLogs = logger.getRecentLogs(20);
+      
+      res.json({
+        status: "healthy",
+        timestamp: new Date().toISOString(),
+        engines: ENGINE_VERSIONS,
+        providers: providerHealth,
+        scheduler: {
+          isRunning: schedulerStatus.isRunning,
+          taskCount: schedulerStatus.taskCount,
+        },
+        recentActivity: recentLogs.slice(-10).map(log => ({
+          timestamp: log.timestamp,
+          type: log.type,
+          severity: log.severity,
+          message: log.message,
+          symbol: log.symbol,
+        })),
+      });
+    } catch (error) {
+      res.status(500).json({ 
+        status: "error", 
+        error: error instanceof Error ? error.message : "Unknown error" 
+      });
+    }
+  });
+
+  app.get("/api/infra/logs", async (req, res) => {
+    try {
+      const { symbol, type, count = "50" } = req.query;
+      
+      let logs;
+      if (symbol && typeof symbol === "string") {
+        logs = logger.getLogsBySymbol(symbol, parseInt(count as string));
+      } else if (type && typeof type === "string") {
+        logs = logger.getLogsByType(type as any, parseInt(count as string));
+      } else {
+        logs = logger.getRecentLogs(parseInt(count as string));
+      }
+      
+      res.json({ logs });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch logs" });
     }
   });
 

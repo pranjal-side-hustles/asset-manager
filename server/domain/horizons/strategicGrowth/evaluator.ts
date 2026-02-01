@@ -10,8 +10,25 @@ import {
   type StrategicInputs,
 } from "./rules";
 import { buildStrategicEvaluation } from "./scoring";
+import { ENGINE_VERSIONS, createEngineMetadata } from "../../engineMeta";
+import { logger } from "../../../infra/logging/logger";
 
-export function evaluateStrategicGrowth(inputs: StrategicInputs): StrategicGrowthEvaluation {
+export interface StrategicGrowthResult extends StrategicGrowthEvaluation {
+  meta: {
+    engine: string;
+    version: string;
+    evaluatedAt: Date;
+  };
+}
+
+export function evaluateStrategicGrowth(inputs: StrategicInputs, symbol?: string): StrategicGrowthResult {
+  const startTime = Date.now();
+  const log = logger.withContext({ 
+    symbol, 
+    engine: "strategicGrowth", 
+    version: ENGINE_VERSIONS.strategicGrowth 
+  });
+  
   const details = {
     riskGuardrails: evaluateRiskGuardrails(inputs),
     marketRegime: evaluateMarketRegime(inputs),
@@ -22,7 +39,20 @@ export function evaluateStrategicGrowth(inputs: StrategicInputs): StrategicGrowt
     thesisDecay: evaluateThesisDecay(inputs),
   };
 
-  return buildStrategicEvaluation(details);
+  const evaluation = buildStrategicEvaluation(details);
+  const meta = createEngineMetadata("strategicGrowth");
+  const duration = Date.now() - startTime;
+  
+  log.engineEvaluation(`Evaluation complete: score=${evaluation.score}, status=${evaluation.status}`, {
+    score: evaluation.score,
+    status: evaluation.status,
+    durationMs: duration,
+  });
+  
+  return {
+    ...evaluation,
+    meta,
+  };
 }
 
 export function createMockStrategicInputs(symbol: string): StrategicInputs {

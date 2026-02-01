@@ -1,0 +1,293 @@
+Deep Dive Stock OS
+ROLE
+
+You are a senior platform engineer hardening an existing Next.js (App Router) + TypeScript application running fully inside Replit.
+
+Your task is to stabilize, observe, and future-proof the core engine before any new product features are added.
+
+This is infrastructure work, not UI work.
+
+OBJECTIVE (PHASE 0 – HARDEN CORE)
+
+Implement the following without changing business logic outputs:
+
+Data refresh scheduling
+
+API retry & fallback hardening
+
+Centralized structured logging
+
+Engine versioning & traceability
+
+After this phase:
+
+The app must be observable
+
+Failures must be explainable
+
+Strategy decisions must be auditable
+
+NON-NEGOTIABLE CONSTRAINTS
+
+Must work inside Replit
+
+No external infra (no Redis, no queues, no cron services)
+
+No vendor lock-in
+
+No breaking API contracts
+
+No UI redesign
+
+1️⃣ DATA REFRESH & SCHEDULING
+Goal
+
+Ensure stock data is refreshed predictably and safely, without redundant API calls.
+
+Requirements
+
+Create a lightweight internal scheduler:
+
+src/
+├── infra/
+│   ├── scheduler/
+│   │   ├── refreshManager.ts
+│   │   └── ttlPolicy.ts
+
+Behavior
+
+Prices: refresh every 60 seconds
+
+Technicals: refresh every 5 minutes
+
+Financials: refresh every 6–12 hours
+
+Sentiment / options: refresh every 5–15 minutes
+
+Use:
+
+In-memory timers
+
+Timestamp validation
+
+TTL policies (no hard cron dependency)
+
+The scheduler must:
+
+Prevent stampeding requests
+
+Deduplicate refreshes per symbol
+
+Respect provider rate limits
+
+2️⃣ API RETRY, TIMEOUT & FALLBACK HARDENING
+Goal
+
+Make external APIs resilient, not brittle.
+
+Requirements
+
+Extend provider fetch logic with:
+
+Request timeout (hard cap)
+
+Retry with exponential backoff
+
+Provider-specific failure isolation
+
+Add:
+
+src/
+├── infra/
+│   ├── network/
+│   │   ├── fetchWithRetry.ts
+│   │   └── providerGuard.ts
+
+Rules
+
+Max retries: 2–3
+
+Never block the entire stock evaluation
+
+Partial data is acceptable
+
+Provider failures must downgrade confidence, not crash
+
+3️⃣ STRUCTURED LOGGING & OBSERVABILITY
+Goal
+
+Every decision must be explainable after the fact.
+
+Requirements
+
+Implement centralized structured logging:
+
+src/
+├── infra/
+│   ├── logging/
+│   │   ├── logger.ts
+│   │   └── logTypes.ts
+
+Log types
+
+DATA_FETCH
+
+PROVIDER_FAILURE
+
+ENGINE_EVALUATION
+
+CACHE_HIT
+
+CACHE_MISS
+
+CONFIDENCE_DOWNGRADE
+
+Each log entry must include:
+
+{
+  timestamp: string;
+  symbol?: string;
+  engine?: string;
+  version?: string;
+  severity: "INFO" | "WARN" | "ERROR";
+  message: string;
+  metadata?: Record<string, unknown>;
+}
+
+
+Logs should:
+
+Print cleanly in Replit console
+
+Be easily redirected later (file / external sink)
+
+Never log API keys or secrets
+
+4️⃣ ENGINE VERSIONING & TRACEABILITY
+Goal
+
+Ensure strategy outputs are version-aware.
+
+Requirements
+
+Introduce explicit engine versioning:
+
+src/
+├── domain/
+│   ├── engineMeta.ts
+
+
+Example:
+
+export const ENGINE_VERSIONS = {
+  strategicGrowth: "1.0.0",
+  tacticalSentinel: "1.0.0",
+};
+
+
+Each evaluation result must include:
+
+{
+  engine: "StrategicGrowth";
+  version: "1.0.0";
+  evaluatedAt: Date;
+}
+
+
+This allows:
+
+Backward compatibility
+
+Historical comparison
+
+Safe rule evolution later
+
+5️⃣ CONFIDENCE SCORING & DEGRADATION (HARDENING)
+Goal
+
+Make uncertainty explicit, not hidden.
+
+Requirements
+
+Introduce a Confidence Layer:
+
+src/
+├── domain/
+│   ├── confidence/
+│   │   └── confidenceEvaluator.ts
+
+
+Confidence must degrade when:
+
+Provider data missing
+
+API fallback triggered
+
+Data stale beyond TTL
+
+Market regime unknown
+
+Example output:
+
+confidence: {
+  level: "HIGH" | "MEDIUM" | "LOW";
+  reasons: string[];
+}
+
+
+This must flow through to the UI later, but no UI changes are required now.
+
+6️⃣ AUDITABILITY (FOUNDATION ONLY)
+Goal
+
+Prepare for audit logs without building a database yet.
+
+Requirements
+
+Keep logs structured and deterministic
+
+Each evaluation must be reproducible given:
+
+symbol
+
+timestamp
+
+engine version
+
+inputs used
+
+No persistence required yet — just design discipline.
+
+7️⃣ WHAT NOT TO DO
+
+❌ Do NOT:
+
+Add new features
+
+Add dashboards
+
+Add portfolio views
+
+Add authentication
+
+Change strategy logic outputs
+
+Optimize prematurely
+
+This phase is about trust, not expansion.
+
+FINAL VALIDATION CHECKLIST
+
+After this phase:
+
+The app must survive partial API outages
+
+Strategy decisions must be traceable
+
+Data freshness must be predictable
+
+Logs must explain why a score changed
+
+Future features must plug in cleanly
+
+Build this slowly, clearly, and defensively.

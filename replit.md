@@ -203,6 +203,83 @@ When providers fail, the app falls back to mock data with:
 - Warning message: "Using fallback mock data - live data providers unavailable"
 - All evaluation engines continue to work with mock data
 
+## Infrastructure (Phase 0 - Hardened Core)
+
+The application includes a production-hardened infrastructure layer:
+
+### Directory Structure
+```
+server/infra/
+├── logging/          # Structured logging
+│   ├── logger.ts
+│   └── logTypes.ts
+├── network/          # API retry & fallback
+│   ├── fetchWithRetry.ts
+│   └── providerGuard.ts
+├── scheduler/        # Data refresh management
+│   ├── refreshManager.ts
+│   └── ttlPolicy.ts
+└── index.ts
+
+server/domain/
+├── engineMeta.ts           # Engine versioning
+└── confidence/
+    └── confidenceEvaluator.ts
+```
+
+### Structured Logging
+
+Log types: `DATA_FETCH`, `PROVIDER_FAILURE`, `ENGINE_EVALUATION`, `CACHE_HIT`, `CACHE_MISS`, `CONFIDENCE_DOWNGRADE`, `SCHEDULER`, `RETRY`, `TIMEOUT`, `FALLBACK`
+
+Each log entry includes:
+- Timestamp
+- Severity (INFO, WARN, ERROR)
+- Symbol context
+- Engine version
+- Sanitized metadata (API keys redacted)
+
+### Provider Health Management
+
+The `providerGuard` tracks:
+- Consecutive failures per provider
+- Automatic cooldown after 5 consecutive failures
+- Success/failure rates
+- Cooldown expiration with automatic re-enabling
+
+### API Retry & Timeout
+
+- Max retries: 2
+- Exponential backoff with jitter
+- Hard timeout: 10 seconds
+- Rate limit (429) aware with longer backoff
+
+### Engine Versioning
+
+Each evaluation includes:
+```json
+{
+  "meta": {
+    "engine": "strategicGrowth",
+    "version": "1.0.0",
+    "evaluatedAt": "2026-02-01T01:46:41.899Z"
+  }
+}
+```
+
+### Infrastructure API Endpoints
+
+- `GET /api/infra/health` - Provider health, scheduler status, recent logs
+- `GET /api/infra/logs` - Query logs by symbol, type, or get recent entries
+  - Query params: `?symbol=AAPL`, `?type=ENGINE_EVALUATION`, `?count=50`
+
+### Confidence Scoring
+
+Confidence degrades based on:
+- Provider availability (weighted by data importance)
+- Data staleness
+- Missing data types (price, technicals, fundamentals, sentiment, options)
+- Market regime uncertainty
+
 ## Development
 
 Run the application:
