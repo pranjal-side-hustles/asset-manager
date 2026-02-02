@@ -67,7 +67,7 @@ export async function registerRoutes(
         marketContext: deriveMarketContextInfo(fallbackContext.context),
         marketConfidence: fallbackContext.context.confidence,
         dataWarning:
-          "Unable to load market data. Add FINNHUB_API_KEY, MARKETSTACK_API_KEY, and FMP_API_KEY in Vercel (or Railway) Environment Variables, then redeploy.",
+          "Market data unavailable. Please configure required data providers and redeploy.",
       });
     }
   });

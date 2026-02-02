@@ -148,7 +148,7 @@ export default function Dashboard() {
         {data?.dataWarning ? (
           <div className="mx-auto max-w-2xl px-6 py-3 rounded-lg bg-slate-50 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800 text-center">
             <p className="text-[11px] text-slate-400 font-medium uppercase tracking-widest leading-relaxed">
-              {data.dataWarning.includes("API key") ? "Connecting to market data..." : data.dataWarning}
+              {data.dataWarning}
             </p>
           </div>
         ) : null}
@@ -200,11 +200,19 @@ export default function Dashboard() {
               </>
             ) : activeFilter !== "all" ? (
               <div className="py-16 text-center space-y-3">
-                <p className="text-muted-foreground text-lg">No stocks meet this criteria right now.</p>
-                <p className="text-sm text-muted-foreground/70">This is normal during cautious markets.</p>
+                <p className="text-muted-foreground text-lg">
+                  {data?.dataWarning ? "Data not available yet." : "No stocks meet this criteria right now."}
+                </p>
+                {!data?.dataWarning && (
+                  <p className="text-sm text-muted-foreground/70">This is normal during cautious markets.</p>
+                )}
                 <Button variant="ghost" size="sm" onClick={handleClearFilter} className="mt-4">
                   Back to Overview
                 </Button>
+              </div>
+            ) : data?.dataWarning ? (
+              <div className="py-16 text-center">
+                <p className="text-muted-foreground text-lg">Data not available yet.</p>
               </div>
             ) : null}
           </div>
