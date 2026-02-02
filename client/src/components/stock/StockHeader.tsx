@@ -56,35 +56,29 @@ export function StockHeader({
         <div className="flex items-end gap-4">
           <div className="text-right">
             <p className="text-3xl md:text-4xl font-bold tracking-tight" data-testid="text-price">
-              {quote.price > 0 ? (
-                `$${quote.price.toLocaleString("en-US", {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}`
-              ) : (
-                <span className="text-muted-foreground text-2xl">Price unavailable (EOD)</span>
-              )}
+              ${quote.price.toLocaleString("en-US", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}
             </p>
-            {quote.price > 0 && (
-              <div
-                className={cn(
-                  "flex items-center justify-end gap-1 text-sm font-medium",
-                  isPositive ? "text-stock-positive" : "text-stock-negative"
-                )}
-                data-testid="text-change"
-              >
-                {isPositive ? (
-                  <TrendingUp className="w-4 h-4" />
-                ) : (
-                  <TrendingDown className="w-4 h-4" />
-                )}
-                <span>
-                  {isPositive ? "+" : ""}
-                  {quote.change.toFixed(2)} ({isPositive ? "+" : ""}
-                  {quote.changePercent.toFixed(2)}%)
-                </span>
-              </div>
-            )}
+            <div
+              className={cn(
+                "flex items-center justify-end gap-1 text-sm font-medium",
+                isPositive ? "text-stock-positive" : "text-stock-negative"
+              )}
+              data-testid="text-change"
+            >
+              {isPositive ? (
+                <TrendingUp className="w-4 h-4" />
+              ) : (
+                <TrendingDown className="w-4 h-4" />
+              )}
+              <span>
+                {isPositive ? "+" : ""}
+                {quote.change.toFixed(2)} ({isPositive ? "+" : ""}
+                {quote.changePercent.toFixed(2)}%)
+              </span>
+            </div>
           </div>
         </div>
       </div>

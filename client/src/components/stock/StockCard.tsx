@@ -83,20 +83,14 @@ export function StockCard({ stock }: StockCardProps) {
             </div>
             <div className="text-right">
               <div className="text-base font-semibold text-foreground/70">
-                {stock.priceAvailable ? (
-                  `$${stock.price.toLocaleString("en-US", { minimumFractionDigits: 2 })}`
-                ) : (
-                  <span className="text-muted-foreground text-xs">Price unavailable (EOD)</span>
-                )}
+                ${stock.price.toLocaleString("en-US", { minimumFractionDigits: 2 })}
               </div>
-              {stock.priceAvailable && (
-                <div className={cn(
-                  "text-[10px] font-medium",
-                  stock.changePercent >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"
-                )}>
-                  {stock.changePercent >= 0 ? "+" : ""}{stock.changePercent.toFixed(2)}%
-                </div>
-              )}
+              <div className={cn(
+                "text-[10px] font-medium",
+                stock.changePercent >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"
+              )}>
+                {stock.changePercent >= 0 ? "+" : ""}{stock.changePercent.toFixed(2)}%
+              </div>
             </div>
           </div>
 
