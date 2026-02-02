@@ -183,11 +183,21 @@ export default function Dashboard() {
 
             {/* Stock Grid */}
             {filteredStocks.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {filteredStocks.slice(0, activeFilter === "all" ? 6 : 15).map((stock) => (
-                  <StockCard key={stock.symbol} stock={stock} />
-                ))}
-              </div>
+              <>
+                {/* Limited Results Note */}
+                {activeFilter !== "all" && filteredStocks.length < 10 && filteredStocks.length > 0 && (
+                  <div className="mb-6 text-center">
+                    <p className="text-sm text-muted-foreground/80 italic">
+                      Limited opportunities meet this criteria right now.
+                    </p>
+                  </div>
+                )}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {filteredStocks.slice(0, activeFilter === "all" ? 6 : 15).map((stock) => (
+                    <StockCard key={stock.symbol} stock={stock} />
+                  ))}
+                </div>
+              </>
             ) : activeFilter !== "all" ? (
               <div className="py-16 text-center space-y-3">
                 <p className="text-muted-foreground text-lg">No stocks meet this criteria right now.</p>

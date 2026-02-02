@@ -1,63 +1,143 @@
 import { Card, CardContent } from "@/components/ui/card";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { Link } from "wouter";
+import { Info } from "lucide-react";
 import type { DashboardStock } from "@shared/types";
 
 interface StockCardProps {
   stock: DashboardStock;
 }
 
-function getDecisionColor(label?: string): { text: string; border: string; bg: string } {
+// Score color based on value
+function getScoreColor(score: number): { text: string; bg: string } {
+  if (score >= 70) {
+    return { text: "text-emerald-700 dark:text-emerald-300", bg: "bg-emerald-100 dark:bg-emerald-500/20" };
+  }
+  if (score >= 50) {
+    return { text: "text-blue-700 dark:text-blue-300", bg: "bg-blue-100 dark:bg-blue-500/20" };
+  }
+  return { text: "text-amber-700 dark:text-amber-300", bg: "bg-amber-100 dark:bg-amber-500/20" };
+}
+
+// Decision pill color (semantic)
+function getDecisionPillColor(label?: string): { text: string; bg: string; border: string } {
   switch (label) {
     case "GOOD_TO_ACT":
-      return { text: "text-emerald-700 dark:text-emerald-300", border: "border-emerald-200 dark:border-emerald-500/40", bg: "bg-emerald-100/50 dark:bg-emerald-500/20" };
+      return { text: "text-emerald-700 dark:text-emerald-300", bg: "bg-emerald-100/60 dark:bg-emerald-500/20", border: "border-emerald-200 dark:border-emerald-500/30" };
     case "WORTH_A_SMALL_LOOK":
-      return { text: "text-blue-700 dark:text-blue-300", border: "border-blue-200 dark:border-blue-500/40", bg: "bg-blue-100/50 dark:bg-blue-500/20" };
+      return { text: "text-blue-700 dark:text-blue-300", bg: "bg-blue-100/60 dark:bg-blue-500/20", border: "border-blue-200 dark:border-blue-500/30" };
     case "PAUSE":
-      return { text: "text-amber-700 dark:text-amber-300", border: "border-amber-200 dark:border-amber-500/40", bg: "bg-amber-100/50 dark:bg-amber-500/20" };
+      return { text: "text-amber-700 dark:text-amber-300", bg: "bg-amber-100/60 dark:bg-amber-500/20", border: "border-amber-200 dark:border-amber-500/30" };
     default: // KEEP_AN_EYE_ON
-      return { text: "text-slate-700 dark:text-slate-300", border: "border-slate-200 dark:border-slate-500/40", bg: "bg-slate-100/50 dark:bg-slate-500/20" };
+      return { text: "text-slate-600 dark:text-slate-300", bg: "bg-slate-100/60 dark:bg-slate-500/20", border: "border-slate-200 dark:border-slate-500/30" };
   }
 }
 
+// Get reason text for why this decision
+function getDecisionReason(stock: DashboardStock): string {
+  const reasons: string[] = [];
+
+  if (stock.marketRegime === "RISK_OFF") {
+    reasons.push("Market regime is cautious");
+  }
+  if (stock.portfolioAction === "BLOCK" || stock.portfolioAction === "REDUCE") {
+    reasons.push("Portfolio guardrail triggered");
+  }
+  if (stock.sectorRegime === "AVOID") {
+    reasons.push("Sector is out of favor");
+  }
+  if (stock.tacticalScore < 50) {
+    reasons.push("FORCE momentum is weak");
+  }
+  if (stock.strategicScore < 50) {
+    reasons.push("SHAPE structure needs improvement");
+  }
+  if (stock.tacticalScore >= 65 && stock.strategicScore >= 55 && stock.decisionLabel?.label !== "GOOD_TO_ACT") {
+    reasons.push("Waiting for confirmation signals");
+  }
+
+  return reasons.length > 0 ? reasons[0] : "Conditions are developing";
+}
+
 export function StockCard({ stock }: StockCardProps) {
-  const decisionColor = getDecisionColor(stock.decisionLabel?.label);
+  const shapeColor = getScoreColor(stock.strategicScore);
+  const forceColor = getScoreColor(stock.tacticalScore);
+  const decisionPill = getDecisionPillColor(stock.decisionLabel?.label);
+  const decisionReason = getDecisionReason(stock);
 
   return (
     <Link href={`/stocks/${stock.symbol.toUpperCase()}`}>
       <Card
-        className="hover:shadow-lg cursor-pointer transition-all duration-300 overflow-hidden border-border/40 bg-card/50 backdrop-blur-md h-full flex flex-col"
+        className="hover:shadow-lg cursor-pointer transition-all duration-300 overflow-hidden border-border/40 bg-card h-full flex flex-col"
         data-testid={`card-stock-${stock.symbol.toLowerCase()}`}
       >
-        <CardContent className="p-6 space-y-4 flex-1 flex flex-col">
-          {/* 1. Stock Identity */}
+        <CardContent className="p-5 space-y-4 flex-1 flex flex-col">
+          {/* Row 0: Stock Identity & Price */}
           <div className="flex justify-between items-start">
-            <div className="space-y-1">
-              <h3 className="text-2xl font-bold tracking-tight text-foreground/90">{stock.symbol}</h3>
-              <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold truncate max-w-[140px]">
+            <div className="space-y-0.5">
+              <h3 className="text-xl font-bold tracking-tight text-foreground/90">{stock.symbol}</h3>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold truncate max-w-[130px]">
                 {stock.companyName}
               </p>
             </div>
-
-            {/* 2. Price */}
             <div className="text-right">
-              <div className="text-lg font-bold text-foreground/70">${stock.price.toLocaleString("en-US", { minimumFractionDigits: 2 })}</div>
-              <div className="text-[9px] text-muted-foreground/60 uppercase tracking-tighter font-medium">Last market close</div>
+              <div className="text-base font-semibold text-foreground/70">
+                ${stock.price.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+              </div>
+              <div className={cn(
+                "text-[10px] font-medium",
+                stock.changePercent >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"
+              )}>
+                {stock.changePercent >= 0 ? "+" : ""}{stock.changePercent.toFixed(2)}%
+              </div>
             </div>
           </div>
 
-          {/* 3. Decision Status (PRIMARY) */}
-          <div className={cn(
-            "px-4 py-4 rounded-xl border text-center space-y-1.5 flex-1 flex flex-col justify-center",
-            decisionColor.bg, decisionColor.border, decisionColor.text
-          )}>
-            <div className="text-base font-bold uppercase tracking-wide">
-              {stock.decisionLabel?.displayText || "Keep an Eye On"}
+          {/* Row 1: SHAPE and FORCE Scores (Equal Weight) */}
+          <div className="grid grid-cols-2 gap-3">
+            {/* SHAPE Score */}
+            <div className={cn("p-3 rounded-lg text-center", shapeColor.bg)}>
+              <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold mb-1">SHAPE</div>
+              <div className={cn("text-2xl font-bold", shapeColor.text)}>{stock.strategicScore}</div>
+              <div className="text-[9px] text-muted-foreground/70 mt-0.5">
+                {stock.strategicScore >= 70 ? "Strong" : stock.strategicScore >= 50 ? "Neutral" : "Weak"}
+              </div>
+            </div>
+
+            {/* FORCE Score */}
+            <div className={cn("p-3 rounded-lg text-center", forceColor.bg)}>
+              <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold mb-1">FORCE</div>
+              <div className={cn("text-2xl font-bold", forceColor.text)}>{stock.tacticalScore}</div>
+              <div className="text-[9px] text-muted-foreground/70 mt-0.5">
+                {stock.tacticalScore >= 70 ? "Strong" : stock.tacticalScore >= 50 ? "Neutral" : "Weak"}
+              </div>
             </div>
           </div>
 
-          {/* 4. One-line Reason */}
-          <p className="text-[11px] text-center text-muted-foreground font-medium leading-relaxed">
+          {/* Row 2: Decision State as Small Centered Pill */}
+          <div className="flex justify-center">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className={cn(
+                    "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold",
+                    decisionPill.bg, decisionPill.border, decisionPill.text
+                  )}>
+                    <span>{stock.decisionLabel?.displayText || "Keep an Eye On"}</span>
+                    <Info className="w-3 h-3 opacity-60" />
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-[200px]">
+                  <p className="text-xs font-medium">Why this decision?</p>
+                  <p className="text-xs text-muted-foreground mt-1">{decisionReason}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+
+          {/* Row 3: One-line Explanation */}
+          <p className="text-[11px] text-center text-muted-foreground font-medium leading-relaxed flex-1 flex items-center justify-center">
             {stock.decisionLabel?.explanation || "Conditions are developing"}
           </p>
         </CardContent>
