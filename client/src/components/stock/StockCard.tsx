@@ -105,23 +105,33 @@ export function StockCard({ stock }: StockCardProps) {
             </div>
           </div>
 
-          {/* Row 1: SHAPE and FORCE Scores (Equal Weight) */}
+          {/* Row 1: SHAPE and FORCE Scores (Circular) */}
           <div className="grid grid-cols-2 gap-3">
             {/* SHAPE Score */}
-            <div className={cn("p-3 rounded-lg text-center", shapeColor.bg)}>
-              <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold mb-1">SHAPE</div>
-              <div className={cn("text-2xl font-bold", shapeColor.text)}>{stock.strategicScore}</div>
-              <div className="text-[9px] text-muted-foreground/70 mt-0.5">
-                {stock.strategicScore >= 70 ? "Strong" : stock.strategicScore >= 50 ? "Neutral" : "Weak"}
+            <div className="flex justify-center">
+              <div className={cn(
+                "w-24 h-24 rounded-full flex flex-col items-center justify-center",
+                shapeColor.bg
+              )}>
+                <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold mb-0.5">SHAPE</div>
+                <div className={cn("text-2xl font-bold", shapeColor.text)}>{stock.strategicScore}</div>
+                <div className="text-[9px] text-muted-foreground/70 mt-0.5">
+                  {stock.strategicScore >= 70 ? "Strong" : stock.strategicScore >= 50 ? "Neutral" : "Weak"}
+                </div>
               </div>
             </div>
 
             {/* FORCE Score */}
-            <div className={cn("p-3 rounded-lg text-center", forceColor.bg)}>
-              <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold mb-1">FORCE</div>
-              <div className={cn("text-2xl font-bold", forceColor.text)}>{stock.tacticalScore}</div>
-              <div className="text-[9px] text-muted-foreground/70 mt-0.5">
-                {stock.tacticalScore >= 70 ? "Strong" : stock.tacticalScore >= 50 ? "Neutral" : "Weak"}
+            <div className="flex justify-center">
+              <div className={cn(
+                "w-24 h-24 rounded-full flex flex-col items-center justify-center",
+                forceColor.bg
+              )}>
+                <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold mb-0.5">FORCE</div>
+                <div className={cn("text-2xl font-bold", forceColor.text)}>{stock.tacticalScore}</div>
+                <div className="text-[9px] text-muted-foreground/70 mt-0.5">
+                  {stock.tacticalScore >= 70 ? "Strong" : stock.tacticalScore >= 50 ? "Neutral" : "Weak"}
+                </div>
               </div>
             </div>
           </div>

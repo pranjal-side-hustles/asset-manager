@@ -187,12 +187,55 @@ export async function getStockSnapshot(
     // Sanity check: If the provider returns a price that is > 20% away from benchmark, it's likely bad data
     if (priceAvailable && benchmark && (Math.abs(quote.price - benchmark) / benchmark > 0.20)) {
       log.warn("DATA_FETCH", `Provider returned suspicious price for ${upperSymbol}: $${quote.price} (Benchmark: $${benchmark}). Falling back to mock.`);
-      return getMockSnapshot(upperSymbol) || generateGenericMock(upperSymbol);
+      // STRICT MODE: Only fallback to mock if in DEMO mode
+      if (isDemoMode()) {
+        return getMockSnapshot(upperSymbol) || generateGenericMock(upperSymbol);
+      }
+      // In LIVE mode, continue with the suspicious price but log a warning
+      log.warn("DATA_FETCH", `Continuing with suspicious price in LIVE mode for ${upperSymbol}`);
     }
 
     if (!priceAvailable || quote.price <= 0) {
-      log.warn("DATA_FETCH", `Provider returned invalid price for ${upperSymbol}. Falling back to mock.`);
-      return getMockSnapshot(upperSymbol) || generateGenericMock(upperSymbol);
+      log.warn("DATA_FETCH", `Provider returned invalid price for ${upperSymbol}. Price unavailable.`);
+      // STRICT MODE: Only fallback to mock if in DEMO mode
+      if (isDemoMode()) {
+        return getMockSnapshot(upperSymbol) || generateGenericMock(upperSymbol);
+      }
+      // In LIVE mode, return a snapshot with priceAvailable: false instead of fabricating data
+      const companyInfo = SYMBOL_COMPANY_MAP[upperSymbol] || {
+        name: `${upperSymbol} Inc.`,
+        sector: "Unknown",
+        industry: "Unknown",
+      };
+
+      return {
+        symbol: upperSymbol,
+        companyName: companyInfo.name,
+        price: 0,
+        change: 0,
+        changePercent: 0,
+        volume: 0,
+        marketCap: 0,
+        sector: companyInfo.sector,
+        industry: companyInfo.industry,
+        fundamentals: DEFAULT_FUNDAMENTALS,
+        technicals: DEFAULT_TECHNICALS,
+        sentiment: DEFAULT_SENTIMENT,
+        options: DEFAULT_OPTIONS,
+        historicalPrices: [],
+        meta: {
+          dataFreshness: new Date(),
+          eodDate: marketData.priceStatus.eodDate || undefined,
+          priceAvailable: false,
+          priceLabel: "Price unavailable (EOD)",
+          providersUsed: meta.providersUsed,
+          providersFailed: meta.providersFailed,
+          confidence: "LOW",
+          confidenceScore: 0,
+          confidenceReasons: ["Price unavailable in LIVE mode - no fallback"],
+          warnings: ["Price unavailable (EOD)"],
+        },
+      };
     }
 
     const confidenceResult = determineConfidence(meta.providersUsed, meta.providersFailed, {
@@ -285,7 +328,7 @@ export async function getStockSnapshot(
         atr: 0, atrPercent: 0, rsi: 0,
         movingAverages: { ma20: 0, ma50: 0, ma200: 0 },
         priceVsMA50: 0, priceVsMA200: 0,
-        weeklyTrend: "NEUTRAL", dailyTrend: "NEUTRAL"
+        weeklyTrend: "SIDEWAYS", dailyTrend: "SIDEWAYS"
       },
       sentiment: { analystRating: 3 }, // Hold
       options: {},
