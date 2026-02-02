@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { fetchStockEvaluation, fetchDashboardStocks } from "./services/stocks/fetchStock";
+import { fetchStockEvaluation, fetchDashboardStocks, deriveMarketContextInfo } from "./services/stocks/fetchStock";
 import { searchStocks } from "./services/stocks/searchStocks";
 import { logger, providerGuard, refreshManager } from "./infra";
 import { ENGINE_VERSIONS } from "./domain/engineMeta";
@@ -23,6 +23,7 @@ export async function registerRoutes(
         stocks,
         lastUpdated: Date.now(),
         marketRegime: marketContext.context.regime,
+        marketContext: deriveMarketContextInfo(marketContext.context),
         marketConfidence: marketContext.context.confidence,
       });
     } catch (error) {
@@ -37,6 +38,7 @@ export async function registerRoutes(
         stocks: [],
         lastUpdated: Date.now(),
         marketRegime: fallbackContext.context.regime,
+        marketContext: deriveMarketContextInfo(fallbackContext.context),
         marketConfidence: fallbackContext.context.confidence,
         dataWarning:
           "Unable to load market data. Add FINNHUB_API_KEY, MARKETSTACK_API_KEY, and FMP_API_KEY in Vercel (or Railway) Environment Variables, then redeploy.",

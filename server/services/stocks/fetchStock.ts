@@ -5,6 +5,7 @@ import type {
   StockEvaluationResponse,
   StockSnapshot,
   DataConfidence,
+  MarketContextInfo,
 } from "@shared/types";
 import type { MarketContext } from "@shared/types/marketContext";
 import { getStockSnapshot } from "../aggregation";
@@ -171,6 +172,7 @@ export async function fetchStockEvaluation(
       : snapshot.meta.warnings,
     providersUsed: snapshot.meta.providersUsed,
     marketRegime: marketContext.regime,
+    marketContext: deriveMarketContextInfo(marketContext),
   };
 }
 
@@ -240,6 +242,39 @@ function deriveSectorInputs(
           ? "HEADWIND"
           : "NEUTRAL",
   };
+}
+
+/**
+ * Derives user-friendly market context info from the raw market context.
+ * Based on Phase 1 logic and user's "Passive Market Context" requirement.
+ */
+export function deriveMarketContextInfo(marketContext: MarketContext): MarketContextInfo {
+  const labelMap: Record<string, "Supportive" | "Mixed" | "Cautious"> = {
+    RISK_ON: "Supportive",
+    NEUTRAL: "Mixed",
+    RISK_OFF: "Cautious",
+  };
+
+  const label = labelMap[marketContext.regime] || "Mixed";
+
+  // Create a short explanatory sentence from the first 2 relevant reasons
+  // Skip the first reason if it's just the regime label
+  const relevantReasons = marketContext.regimeReasons
+    .filter(r => !r.toLowerCase().includes("market regime"))
+    .slice(0, 2);
+
+  let description = relevantReasons.join(". ");
+  if (description && !description.endsWith(".")) description += ".";
+
+  if (!description) {
+    description = marketContext.regime === "RISK_ON"
+      ? "Market conditions are generally favorable."
+      : marketContext.regime === "RISK_OFF"
+        ? "Market conditions suggest caution."
+        : "Market indicators are showing a mixed picture.";
+  }
+
+  return { label, description };
 }
 
 export async function fetchDashboardStocks(): Promise<DashboardStock[]> {
@@ -392,6 +427,7 @@ export async function fetchDashboardStocks(): Promise<DashboardStock[]> {
         event: s.tacticalSentinel.details.eventProximity.status,
       },
       sentimentScore: s.tacticalSentinel.details.sentimentContext.score,
+      marketContext: deriveMarketContextInfo(marketContext),
     };
   });
 
