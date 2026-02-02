@@ -87,13 +87,13 @@ function ensureCacheDir(): void {
 function getTradingDate(): string {
   const now = new Date();
   const day = now.getDay();
-  
+
   if (day === 0) {
     now.setDate(now.getDate() - 2);
   } else if (day === 6) {
     now.setDate(now.getDate() - 1);
   }
-  
+
   return now.toISOString().split('T')[0];
 }
 
@@ -108,13 +108,13 @@ function getCacheFilePath(symbol: string, date: string): string {
 function getFromCache(symbol: string): CacheEntry | null {
   const todayDate = getTradingDate();
   const cacheKey = getCacheKey(symbol, todayDate);
-  
+
   const memEntry = memoryCache.get(cacheKey);
   if (memEntry) {
     logger.withContext({ symbol }).info("CACHE_HIT", `Using cached EOD data for ${symbol} (${memEntry.cacheDate})`);
     return memEntry;
   }
-  
+
   const filePath = getCacheFilePath(symbol, todayDate);
   if (fs.existsSync(filePath)) {
     try {
@@ -126,23 +126,23 @@ function getFromCache(symbol: string): CacheEntry | null {
       logger.withContext({ symbol }).warn("CACHE_MISS", `Failed to read cache file for ${symbol}`);
     }
   }
-  
+
   return null;
 }
 
 function saveToCache(symbol: string, data: { eod: EODData; ohlc: OHLCData[] }): void {
   const todayDate = getTradingDate();
   const cacheKey = getCacheKey(symbol, todayDate);
-  
+
   const entry: CacheEntry = {
     data,
     cacheDate: todayDate,
     symbol: symbol.toUpperCase(),
     fetchedAt: Date.now(),
   };
-  
+
   memoryCache.set(cacheKey, entry);
-  
+
   try {
     ensureCacheDir();
     const filePath = getCacheFilePath(symbol, todayDate);
@@ -174,7 +174,7 @@ export function getCacheStats(): { entries: number; symbols: string[] } {
 }
 
 export function isMarketstackAvailable(): boolean {
-  return !!process.env.MARKETSTACK_API_KEY_1;
+  return !!process.env.MARKETSTACK_API_KEY;
 }
 
 export async function fetchMarketstackEOD(symbol: string): Promise<MarketstackEODResult> {
@@ -190,8 +190,8 @@ export async function fetchMarketstackEOD(symbol: string): Promise<MarketstackEO
     };
   }
 
-  const apiKey = process.env.MARKETSTACK_API_KEY_1;
-  
+  const apiKey = process.env.MARKETSTACK_API_KEY;
+
   if (!apiKey) {
     log.providerFailure("MARKETSTACK_API_KEY not configured");
     return {
@@ -209,9 +209,9 @@ export async function fetchMarketstackEOD(symbol: string): Promise<MarketstackEO
     const dateFromStr = dateFrom.toISOString().split('T')[0];
 
     const url = `${MARKETSTACK_BASE_URL}/eod?access_key=${apiKey}&symbols=${upperSymbol}&date_from=${dateFromStr}&date_to=${dateTo}&limit=250`;
-    
+
     log.dataFetch(`Fetching EOD data from Marketstack for ${upperSymbol}`);
-    
+
     const response = await fetch(url, {
       headers: {
         'Accept': 'application/json',
@@ -220,7 +220,7 @@ export async function fetchMarketstackEOD(symbol: string): Promise<MarketstackEO
 
     if (!response.ok) {
       const errorText = await response.text();
-      
+
       if (response.status === 429 || errorText.includes('quota') || errorText.includes('limit')) {
         log.providerFailure(`Marketstack quota exceeded for ${upperSymbol}`);
         return {
@@ -230,7 +230,7 @@ export async function fetchMarketstackEOD(symbol: string): Promise<MarketstackEO
           cached: false,
         };
       }
-      
+
       log.providerFailure(`Marketstack API failed for ${upperSymbol}: ${response.status}`);
       return {
         success: false,
@@ -264,7 +264,7 @@ export async function fetchMarketstackEOD(symbol: string): Promise<MarketstackEO
 
     const latestEOD = responseData.data[0];
     const previousEOD = responseData.data[1];
-    
+
     const closePrice = latestEOD.adj_close || latestEOD.close;
     const previousClose = previousEOD ? (previousEOD.adj_close || previousEOD.close) : closePrice;
     const change = closePrice - previousClose;
