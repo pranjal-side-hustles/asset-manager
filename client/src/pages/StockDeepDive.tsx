@@ -103,6 +103,58 @@ function getMarketContextTooltip(label?: string): string {
   }
 }
 
+import type { EvaluationDetail } from "@shared/types";
+
+// Get status icon and color for indicator
+function getStatusIcon(status: "pass" | "caution" | "fail") {
+  switch (status) {
+    case "pass":
+      return { icon: <Check className="w-4 h-4" />, color: "text-emerald-500", bg: "bg-emerald-50 dark:bg-emerald-500/10" };
+    case "caution":
+      return { icon: <AlertCircle className="w-4 h-4" />, color: "text-amber-500", bg: "bg-amber-50 dark:bg-amber-500/10" };
+    case "fail":
+      return { icon: <X className="w-4 h-4" />, color: "text-rose-500", bg: "bg-rose-50 dark:bg-rose-500/10" };
+  }
+}
+
+function IndicatorRow({ indicator }: { indicator: EvaluationDetail }) {
+  const statusInfo = getStatusIcon(indicator.status);
+  const scorePercent = indicator.maxScore > 0 ? Math.round((indicator.score / indicator.maxScore) * 100) : 0;
+
+  return (
+    <div className={cn("p-3 rounded-lg border transition-all", statusInfo.bg, "border-border/20")}>
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <span className={cn("flex-shrink-0", statusInfo.color)}>{statusInfo.icon}</span>
+            <span className="text-sm font-medium truncate">{indicator.name}</span>
+          </div>
+          <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{indicator.summary}</p>
+        </div>
+        <div className="flex-shrink-0 text-right">
+          <div className="text-sm font-bold">
+            {indicator.score}/{indicator.maxScore}
+          </div>
+          <div className="text-[10px] text-muted-foreground">{scorePercent}%</div>
+        </div>
+      </div>
+
+      {/* Score bar */}
+      <div className="mt-2 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+        <div
+          className={cn(
+            "h-full rounded-full transition-all",
+            indicator.status === "pass" ? "bg-emerald-500" :
+              indicator.status === "caution" ? "bg-amber-500" : "bg-rose-500"
+          )}
+          style={{ width: `${scorePercent}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+// Simple signal row for confirmation checklist
 function SignalRow({ label, passed }: { label: string; passed: boolean }) {
   return (
     <div className="flex items-center justify-between py-1.5 border-b border-border/10 last:border-0">
@@ -121,11 +173,11 @@ interface StrategyCardProps {
   strategy: "SHAPE" | "FORCE";
   score: number;
   description: string;
-  signals: { label: string; passed: boolean }[];
+  indicators: EvaluationDetail[];
   horizonLabel: string;
 }
 
-function StrategyCard({ title, strategy, score, description, signals, horizonLabel }: StrategyCardProps) {
+function StrategyCard({ title, strategy, score, description, indicators, horizonLabel }: StrategyCardProps) {
   const [isOpen, setIsOpen] = useState(false);
   const color = getScoreColor(score);
   const label = getScoreLabel(score, strategy);
@@ -140,8 +192,9 @@ function StrategyCard({ title, strategy, score, description, signals, horizonLab
           </div>
           <button
             onClick={() => setIsOpen(!isOpen)}
-            className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
+            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
           >
+            <span>{isOpen ? "Hide" : "Show"} Details</span>
             {isOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
           </button>
         </div>
@@ -157,13 +210,13 @@ function StrategyCard({ title, strategy, score, description, signals, horizonLab
 
         <p className="text-xs text-muted-foreground leading-relaxed">{description}</p>
 
-        {isOpen && signals.length > 0 && (
-          <div className="pt-3 border-t border-border/20 space-y-1 animate-in fade-in slide-in-from-top-1 duration-200">
-            <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2">
-              {strategy} Breakdown
+        {isOpen && indicators.length > 0 && (
+          <div className="pt-4 border-t border-border/20 space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
+            <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+              {strategy} Indicators ({indicators.length})
             </div>
-            {signals.map((signal, i) => (
-              <SignalRow key={i} label={signal.label} passed={signal.passed} />
+            {indicators.map((indicator, i) => (
+              <IndicatorRow key={i} indicator={indicator} />
             ))}
           </div>
         )}
@@ -234,22 +287,17 @@ export default function StockDeepDive() {
   const tacticalScore = data?.evaluation?.tacticalSentinel?.score ?? 50;
   const sentimentScore = data?.evaluation?.tacticalSentinel?.details?.sentimentContext?.score ?? 50;
 
-  // Derive SHAPE signals
-  const shapeSignals = data?.evaluation?.strategicGrowth?.details ? [
-    { label: "Business fundamentals", passed: data.evaluation.strategicGrowth.details.fundamentalAcceleration?.status === "pass" },
-    { label: "Structural growth quality", passed: data.evaluation.strategicGrowth.details.institutionalSignals?.status === "pass" },
-    { label: "Portfolio fit", passed: data.evaluation.strategicGrowth.details.macroAlignment?.status !== "fail" },
-  ] : [];
+  // Extract SHAPE indicators (EvaluationDetail arrays)
+  const shapeIndicators: EvaluationDetail[] = data?.evaluation?.strategicGrowth?.details
+    ? Object.values(data.evaluation.strategicGrowth.details).filter((d): d is EvaluationDetail => d !== undefined && d !== null)
+    : [];
 
-  // Derive FORCE signals
-  const forceSignals = data?.evaluation?.tacticalSentinel?.details ? [
-    { label: "Trend aligned", passed: data.evaluation.tacticalSentinel.details.technicalAlignment?.status === "pass" },
-    { label: "Volatility calming", passed: data.evaluation.tacticalSentinel.details.liquidityTriggers?.status !== "fail" },
-    { label: "Momentum confirming", passed: data.evaluation.tacticalSentinel.details.momentumRegime?.status === "pass" },
-    { label: "Event risk nearby", passed: data.evaluation.tacticalSentinel.details.eventProximity?.status !== "fail" },
-  ] : [];
+  // Extract FORCE indicators (EvaluationDetail arrays)
+  const forceIndicators: EvaluationDetail[] = data?.evaluation?.tacticalSentinel?.details
+    ? Object.values(data.evaluation.tacticalSentinel.details).filter((d): d is EvaluationDetail => d !== undefined && d !== null)
+    : [];
 
-  // Derive confirmation signals
+  // Derive confirmation signals (simple pass/fail for checklist)
   const confirmationSignals = data?.evaluation?.strategicGrowth?.details ? [
     { label: "Business fundamentals", passed: data.evaluation.strategicGrowth.details.fundamentalAcceleration?.status === "pass" },
     { label: "Technical trend", passed: data?.evaluation?.tacticalSentinel?.details?.technicalAlignment?.status === "pass" },
@@ -331,7 +379,7 @@ export default function StockDeepDive() {
                 strategy="SHAPE"
                 score={strategicScore}
                 description="SHAPE measures the structural quality of the business over the next several months."
-                signals={shapeSignals}
+                indicators={shapeIndicators}
                 horizonLabel="4-9 month horizon"
               />
               <StrategyCard
@@ -339,7 +387,7 @@ export default function StockDeepDive() {
                 strategy="FORCE"
                 score={tacticalScore}
                 description="FORCE measures how market conditions may impact this stock in the near term."
-                signals={forceSignals}
+                indicators={forceIndicators}
                 horizonLabel="0-4 month horizon"
               />
               <SentimentCard score={sentimentScore} />
