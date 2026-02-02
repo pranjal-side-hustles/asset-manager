@@ -12,7 +12,7 @@ import { getMarketData } from "../providers/adapter";
 import { stockCache, CACHE_TTL } from "./cache";
 import { logger } from "../../infra";
 import { isDemoMode } from "../../domain/dataMode";
-import { getMockSnapshot } from "./mockFallback";
+import { getMockSnapshot, getBenchmarkPrice } from "./mockFallback";
 import { evaluateConfidence, type ConfidenceResult } from "../../domain/confidence/confidenceEvaluator";
 
 const SYMBOL_COMPANY_MAP: Record<string, { name: string; sector: string; industry: string }> = {
@@ -178,6 +178,13 @@ export async function getStockSnapshot(symbol: string): Promise<StockSnapshot | 
     };
 
     const priceAvailable = quote.price > 0 && marketData.priceStatus.source !== "Unavailable";
+    const benchmark = getBenchmarkPrice(upperSymbol);
+
+    // Sanity check: If the provider returns a price that is > 30% away from benchmark, it's likely bad data
+    if (priceAvailable && benchmark && (Math.abs(quote.price - benchmark) / benchmark > 0.30)) {
+      log.warn("DATA_FETCH", `Provider returned suspicious price for ${upperSymbol}: $${quote.price} (Benchmark: $${benchmark}). Falling back to mock.`);
+      return getMockSnapshot(upperSymbol) || generateGenericMock(upperSymbol);
+    }
 
     if (!priceAvailable || quote.price <= 0) {
       log.warn("DATA_FETCH", `Provider returned invalid price for ${upperSymbol}. Falling back to mock.`);
@@ -253,13 +260,17 @@ export async function getStockSnapshot(symbol: string): Promise<StockSnapshot | 
 }
 
 function generateGenericMock(symbol: string): StockSnapshot {
-  const s = symbol.split('').reduce((a, b) => a + b.charCodeAt(0), 0);
-  const basePrice = 100 + (s % 400);
+  const upperSymbol = symbol.toUpperCase();
+  const benchmark = getBenchmarkPrice(upperSymbol);
+  const s = upperSymbol.split('').reduce((a, b) => a + b.charCodeAt(0), 0);
+
+  // Use benchmark if available, otherwise generate stable pseudorandom
+  const basePrice = benchmark || (100 + (s % 400));
   const change = (s % 10) - 5;
 
   return {
-    symbol,
-    companyName: `${symbol} Inc. (Syncing)`,
+    symbol: upperSymbol,
+    companyName: `${upperSymbol} Inc. (Syncing)`,
     price: basePrice,
     change: change,
     changePercent: (change / basePrice) * 100,
