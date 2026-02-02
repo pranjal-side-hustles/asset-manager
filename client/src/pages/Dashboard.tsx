@@ -57,24 +57,54 @@ function DashboardSkeleton() {
 
 type FilterType = "all" | "ready" | "watching" | "shape" | "force";
 
-const FILTER_LABELS: Record<FilterType, { title: string; description: string }> = {
-  all: { title: "All Stocks", description: "" },
-  ready: { title: "Ready Now", description: "Stocks where both SHAPE and FORCE are aligned for action." },
-  watching: { title: "Keep Watching", description: "Stocks with developing conditions—worth monitoring." },
-  shape: { title: "Strong SHAPE", description: "Stocks with solid business structure over the next several months." },
-  force: { title: "Strong FORCE", description: "Stocks where current market conditions favor near-term action." },
+const FILTER_LABELS: Record<FilterType, { title: string; subtitle: string }> = {
+  all: { title: "All Stocks", subtitle: "" },
+  ready: { title: "Ready Now", subtitle: "Stocks where structure and timing are aligned." },
+  watching: { title: "Keep Watching", subtitle: "Strong businesses waiting for better conditions." },
+  shape: { title: "SHAPE Overview", subtitle: "Stocks with the strongest business structure." },
+  force: { title: "FORCE Overview", subtitle: "Stocks showing the strongest market activity." },
 };
 
-function filterStocks(stocks: DashboardStock[], filter: FilterType): DashboardStock[] {
+/**
+ * Filter logic per user specification (DO NOT modify scoring logic, only inclusion criteria)
+ */
+function filterStocks(stocks: DashboardStock[], filter: FilterType, marketRegime?: string): DashboardStock[] {
   switch (filter) {
     case "ready":
-      return stocks.filter(s => s.decisionLabel?.label === "GOOD_TO_ACT");
+      // READY NOW: FORCE ≥ 65, SHAPE ≥ 55, confirmation not NONE, no risk blocks, market ≠ Risk-Off
+      // Sort by highest FORCE score (descending)
+      return stocks.filter(s => {
+        const forceOk = s.tacticalScore >= 65;
+        const shapeOk = s.strategicScore >= 55;
+        const hasConfirmation = s.decisionLabel?.label !== "KEEP_AN_EYE_ON" || s.tacticalScore >= 50;
+        const noRiskBlocks = s.decisionLabel?.label !== "PAUSE";
+        const marketOk = marketRegime !== "RISK_OFF";
+        return forceOk && shapeOk && hasConfirmation && noRiskBlocks && marketOk;
+      }).sort((a, b) => b.tacticalScore - a.tacticalScore);
+
     case "watching":
-      return stocks.filter(s => s.decisionLabel?.label === "KEEP_AN_EYE_ON");
+      // KEEP WATCHING: SHAPE ≥ 60 AND (FORCE 40-64 OR FORCE ≥ 65 with confirmation NONE OR market Risk-Off)
+      // Sort by highest SHAPE score (descending)
+      return stocks.filter(s => {
+        const strongShape = s.strategicScore >= 60;
+        const developingForce = s.tacticalScore >= 40 && s.tacticalScore < 65;
+        const forceBlockedByConfirmation = s.tacticalScore >= 65 && s.decisionLabel?.label === "KEEP_AN_EYE_ON";
+        const forceBlockedByMarket = s.tacticalScore >= 65 && marketRegime === "RISK_OFF";
+        return strongShape && (developingForce || forceBlockedByConfirmation || forceBlockedByMarket);
+      }).sort((a, b) => b.strategicScore - a.strategicScore);
+
     case "shape":
-      return stocks.filter(s => s.strategicScore >= 65).sort((a, b) => b.strategicScore - a.strategicScore);
+      // SHAPE OVERVIEW: SHAPE ≥ 65, sorted by highest SHAPE first
+      return stocks
+        .filter(s => s.strategicScore >= 65)
+        .sort((a, b) => b.strategicScore - a.strategicScore);
+
     case "force":
-      return stocks.filter(s => s.tacticalScore >= 65).sort((a, b) => b.tacticalScore - a.tacticalScore);
+      // FORCE OVERVIEW: FORCE ≥ 65, sorted by highest FORCE first
+      return stocks
+        .filter(s => s.tacticalScore >= 65)
+        .sort((a, b) => b.tacticalScore - a.tacticalScore);
+
     default:
       return stocks;
   }
@@ -89,8 +119,8 @@ export default function Dashboard() {
 
   const filteredStocks = useMemo(() => {
     if (!data?.stocks) return [];
-    return filterStocks(data.stocks, activeFilter);
-  }, [data?.stocks, activeFilter]);
+    return filterStocks(data.stocks, activeFilter, data.marketRegime);
+  }, [data?.stocks, data?.marketRegime, activeFilter]);
 
   const handleSummaryClick = (filter: string) => {
     setActiveFilter(filter as FilterType);
@@ -139,14 +169,14 @@ export default function Dashboard() {
 
             {/* Filter Header (when filtered) */}
             {activeFilter !== "all" && (
-              <div className="flex items-center justify-between p-4 rounded-xl bg-slate-50 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800">
+              <div className="flex items-center justify-between p-5 rounded-xl bg-slate-50 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800">
                 <div>
-                  <h2 className="text-lg font-semibold">{FILTER_LABELS[activeFilter].title}</h2>
-                  <p className="text-sm text-muted-foreground">{FILTER_LABELS[activeFilter].description}</p>
+                  <h2 className="text-xl font-semibold">{FILTER_LABELS[activeFilter].title}</h2>
+                  <p className="text-sm text-muted-foreground mt-1">{FILTER_LABELS[activeFilter].subtitle}</p>
                 </div>
                 <Button variant="ghost" size="sm" onClick={handleClearFilter} className="gap-2">
                   <X className="w-4 h-4" />
-                  Clear Filter
+                  Back to Overview
                 </Button>
               </div>
             )}
@@ -158,14 +188,15 @@ export default function Dashboard() {
                   <StockCard key={stock.symbol} stock={stock} />
                 ))}
               </div>
-            ) : (
-              <div className="py-12 text-center">
-                <p className="text-muted-foreground">No stocks match this filter.</p>
+            ) : activeFilter !== "all" ? (
+              <div className="py-16 text-center space-y-3">
+                <p className="text-muted-foreground text-lg">No stocks qualify right now.</p>
+                <p className="text-sm text-muted-foreground/70">This is normal during cautious markets.</p>
                 <Button variant="ghost" size="sm" onClick={handleClearFilter} className="mt-4">
-                  View all stocks
+                  Back to Overview
                 </Button>
               </div>
-            )}
+            ) : null}
           </div>
         ) : null}
 
