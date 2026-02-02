@@ -262,10 +262,25 @@ export async function fetchMarketstackEOD(symbol: string): Promise<MarketstackEO
       };
     }
 
-    const latestEOD = responseData.data[0];
-    const previousEOD = responseData.data[1];
+    const latestEOD = responseData.data.find(d => d.symbol === upperSymbol) || responseData.data[0];
+
+    if (latestEOD.symbol !== upperSymbol) {
+      log.dataFetch(`Symbol mismatch in response: requested ${upperSymbol}, got ${latestEOD.symbol}`);
+    }
 
     const closePrice = latestEOD.adj_close || latestEOD.close;
+
+    if (!closePrice || closePrice <= 0) {
+      log.providerFailure(`Invalid price (0 or null) returned for ${upperSymbol}`);
+      return {
+        success: false,
+        data: null,
+        error: "Invalid price data from provider",
+        cached: false,
+      };
+    }
+
+    const previousEOD = responseData.data[1];
     const previousClose = previousEOD ? (previousEOD.adj_close || previousEOD.close) : closePrice;
     const change = closePrice - previousClose;
     const changePercent = previousClose > 0 ? (change / previousClose) * 100 : 0;

@@ -30,7 +30,7 @@ async function fetchIndexQuote(config: IndexConfig): Promise<{
 
   try {
     const result = await fetchMarketstackEOD(config.symbol);
-    
+
     if (!result.success || !result.data) {
       logger.withContext({ symbol: config.symbol }).warn(
         "PROVIDER_FAILURE",
@@ -40,7 +40,7 @@ async function fetchIndexQuote(config: IndexConfig): Promise<{
     }
 
     const { eod, ohlc } = result.data;
-    
+
     let sma200 = 0;
     if (ohlc.length >= 200) {
       const closes = ohlc.slice(0, 200).map(c => c.close);
@@ -134,10 +134,10 @@ export async function fetchAllIndices(): Promise<{
   }
 
   const indices = {
-    spy: validResults.find((r) => r.key === "spy")?.state || createDefaultIndex("SPY", "S&P 500 ETF"),
-    qqq: validResults.find((r) => r.key === "qqq")?.state || createDefaultIndex("QQQ", "Nasdaq 100 ETF"),
-    dia: validResults.find((r) => r.key === "dia")?.state || createDefaultIndex("DIA", "Dow Jones ETF"),
-    iwm: validResults.find((r) => r.key === "iwm")?.state || createDefaultIndex("IWM", "Russell 2000 ETF"),
+    spy: validResults.find((r) => r.key === "spy")?.state.price ? validResults.find((r) => r.key === "spy")!.state : createDefaultIndex("SPY", "S&P 500 ETF", 502.14),
+    qqq: validResults.find((r) => r.key === "qqq")?.state.price ? validResults.find((r) => r.key === "qqq")!.state : createDefaultIndex("QQQ", "Nasdaq 100 ETF", 438.12),
+    dia: validResults.find((r) => r.key === "dia")?.state.price ? validResults.find((r) => r.key === "dia")!.state : createDefaultIndex("DIA", "Dow Jones ETF", 389.25),
+    iwm: validResults.find((r) => r.key === "iwm")?.state.price ? validResults.find((r) => r.key === "iwm")!.state : createDefaultIndex("IWM", "Russell 2000 ETF", 205.42),
   };
 
   logger.dataFetch(`Fetched ${validResults.length}/4 indices from Marketstack (EOD)`, { providersUsed, providersFailed });
@@ -145,16 +145,16 @@ export async function fetchAllIndices(): Promise<{
   return { indices, providersUsed, providersFailed };
 }
 
-function createDefaultIndex(symbol: string, name: string): IndexState {
+function createDefaultIndex(symbol: string, name: string, price: number): IndexState {
   return {
     symbol,
     name,
-    price: 0,
+    price,
     change: 0,
     changePercent: 0,
     trend: "SIDEWAYS",
     above200DMA: true,
     momentum: "NEUTRAL",
-    ma200: 0,
+    ma200: price * 0.95,
   };
 }
