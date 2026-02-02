@@ -57,12 +57,12 @@ function DashboardSkeleton() {
 
 type FilterType = "all" | "ready" | "watching" | "shape" | "force";
 
-const FILTER_LABELS: Record<FilterType, { title: string; description: string }> = {
-  all: { title: "All Stocks", description: "" },
-  ready: { title: "Ready Now", description: "Stocks where structure and timing are aligned enough to justify active consideration." },
-  watching: { title: "Keep Watching", description: "Good businesses waiting for better timing or confirmation." },
-  shape: { title: "SHAPE Overview", description: "Strongest structural businesses, independent of timing." },
-  force: { title: "FORCE Overview", description: "Stocks where market conditions are most active, even if structure is mixed." },
+const FILTER_LABELS: Record<FilterType, { title: string; subtitle: string }> = {
+  all: { title: "All Stocks", subtitle: "" },
+  ready: { title: "Ready Now", subtitle: "Stocks where structure and timing are aligned." },
+  watching: { title: "Keep Watching", subtitle: "Strong businesses waiting for better conditions." },
+  shape: { title: "SHAPE Overview", subtitle: "Stocks with the strongest business structure." },
+  force: { title: "FORCE Overview", subtitle: "Stocks showing the strongest market activity." },
 };
 
 /**
@@ -72,24 +72,26 @@ function filterStocks(stocks: DashboardStock[], filter: FilterType, marketRegime
   switch (filter) {
     case "ready":
       // READY NOW: FORCE ≥ 65, SHAPE ≥ 55, confirmation not NONE, no risk blocks, market ≠ Risk-Off
+      // Sort by highest FORCE score (descending)
       return stocks.filter(s => {
         const forceOk = s.tacticalScore >= 65;
         const shapeOk = s.strategicScore >= 55;
-        const hasConfirmation = s.decisionLabel?.label !== "KEEP_AN_EYE_ON" || s.tacticalScore >= 50; // proxy for confirmation
+        const hasConfirmation = s.decisionLabel?.label !== "KEEP_AN_EYE_ON" || s.tacticalScore >= 50;
         const noRiskBlocks = s.decisionLabel?.label !== "PAUSE";
         const marketOk = marketRegime !== "RISK_OFF";
         return forceOk && shapeOk && hasConfirmation && noRiskBlocks && marketOk;
-      });
+      }).sort((a, b) => b.tacticalScore - a.tacticalScore);
 
     case "watching":
       // KEEP WATCHING: SHAPE ≥ 60 AND (FORCE 40-64 OR FORCE ≥ 65 with confirmation NONE OR market Risk-Off)
+      // Sort by highest SHAPE score (descending)
       return stocks.filter(s => {
         const strongShape = s.strategicScore >= 60;
         const developingForce = s.tacticalScore >= 40 && s.tacticalScore < 65;
         const forceBlockedByConfirmation = s.tacticalScore >= 65 && s.decisionLabel?.label === "KEEP_AN_EYE_ON";
         const forceBlockedByMarket = s.tacticalScore >= 65 && marketRegime === "RISK_OFF";
         return strongShape && (developingForce || forceBlockedByConfirmation || forceBlockedByMarket);
-      });
+      }).sort((a, b) => b.strategicScore - a.strategicScore);
 
     case "shape":
       // SHAPE OVERVIEW: SHAPE ≥ 65, sorted by highest SHAPE first
@@ -167,14 +169,14 @@ export default function Dashboard() {
 
             {/* Filter Header (when filtered) */}
             {activeFilter !== "all" && (
-              <div className="flex items-center justify-between p-4 rounded-xl bg-slate-50 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800">
+              <div className="flex items-center justify-between p-5 rounded-xl bg-slate-50 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800">
                 <div>
-                  <h2 className="text-lg font-semibold">{FILTER_LABELS[activeFilter].title}</h2>
-                  <p className="text-sm text-muted-foreground">{FILTER_LABELS[activeFilter].description}</p>
+                  <h2 className="text-xl font-semibold">{FILTER_LABELS[activeFilter].title}</h2>
+                  <p className="text-sm text-muted-foreground mt-1">{FILTER_LABELS[activeFilter].subtitle}</p>
                 </div>
                 <Button variant="ghost" size="sm" onClick={handleClearFilter} className="gap-2">
                   <X className="w-4 h-4" />
-                  Clear Filter
+                  Back to Overview
                 </Button>
               </div>
             )}
@@ -186,14 +188,15 @@ export default function Dashboard() {
                   <StockCard key={stock.symbol} stock={stock} />
                 ))}
               </div>
-            ) : (
-              <div className="py-12 text-center">
-                <p className="text-muted-foreground">No stocks match this filter.</p>
+            ) : activeFilter !== "all" ? (
+              <div className="py-16 text-center space-y-3">
+                <p className="text-muted-foreground text-lg">No stocks qualify right now.</p>
+                <p className="text-sm text-muted-foreground/70">This is normal during cautious markets.</p>
                 <Button variant="ghost" size="sm" onClick={handleClearFilter} className="mt-4">
-                  View all stocks
+                  Back to Overview
                 </Button>
               </div>
-            )}
+            ) : null}
           </div>
         ) : null}
 
