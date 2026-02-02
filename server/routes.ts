@@ -9,6 +9,8 @@ import { evaluatePhase3ForSymbol } from "./domain/phase3";
 import { evaluatePhase4ForSymbol } from "./domain/phase4";
 import { isUniverseDemoMode } from "./services/stocks/stockUniverse";
 import { getDataMode } from "./domain/dataMode";
+import { stockCache } from "./services/aggregation/cache";
+import { clearCache as clearMarketstackCache } from "./services/providers/marketstack/marketstackEODProvider";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -413,6 +415,17 @@ export async function registerRoutes(
       res.json({ logs });
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch logs" });
+    }
+  });
+
+  app.post("/api/infra/clear-cache", async (req, res) => {
+    try {
+      stockCache.clear();
+      clearMarketstackCache();
+      logger.info("DATA_FETCH", "Cache cleared manually via API");
+      res.json({ status: "success", message: "All caches cleared" });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to clear cache" });
     }
   });
 
