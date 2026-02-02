@@ -7,6 +7,7 @@ import type {
   DataConfidence,
   MarketContextInfo,
 } from "@shared/types";
+import { PriceContext } from "@shared/types";
 import type { MarketContext } from "@shared/types/marketContext";
 import { getStockSnapshot } from "../aggregation";
 import { evaluateStrategicGrowth } from "../../domain/horizons/strategicGrowth/evaluator";
@@ -73,19 +74,21 @@ function snapshotToStock(snapshot: StockSnapshot): Stock {
     marketCap: snapshot.marketCap || 0,
     sector: snapshot.sector || "Unknown",
     industry: snapshot.industry || "Unknown",
+    intraday: snapshot.intraday,
   };
 }
 
 function snapshotToQuote(snapshot: StockSnapshot): StockQuote {
+  const price = snapshot.price;
   return {
     symbol: snapshot.symbol,
-    price: snapshot.price,
+    price,
     change: snapshot.change,
     changePercent: snapshot.changePercent,
-    high: snapshot.price * 1.02,
-    low: snapshot.price * 0.98,
-    open: snapshot.price - snapshot.change,
-    previousClose: snapshot.price - snapshot.change,
+    high: price * 1.02,
+    low: price * 0.98,
+    open: price - snapshot.change,
+    previousClose: price - snapshot.change,
     volume: snapshot.volume,
     timestamp: snapshot.meta.dataFreshness.getTime(),
   };
@@ -93,12 +96,13 @@ function snapshotToQuote(snapshot: StockSnapshot): StockQuote {
 
 export async function fetchStockData(
   symbol: string,
+  context: PriceContext = PriceContext.STOCK_DETAIL
 ): Promise<{
   stock: Stock;
   quote: StockQuote;
   snapshot: StockSnapshot;
 } | null> {
-  const snapshot = await getStockSnapshot(symbol.toUpperCase());
+  const snapshot = await getStockSnapshot(symbol.toUpperCase(), context);
 
   if (!snapshot) {
     logger.withContext({ symbol }).warn("DATA_FETCH", "No data available");
@@ -114,9 +118,10 @@ export async function fetchStockData(
 
 export async function fetchStockEvaluation(
   symbol: string,
+  context: PriceContext = PriceContext.STOCK_DETAIL
 ): Promise<ExtendedStockEvaluationResponse | null> {
   const [stockData, marketContextSnapshot] = await Promise.all([
-    fetchStockData(symbol),
+    fetchStockData(symbol, context),
     getMarketContext(),
   ]);
 
@@ -177,6 +182,7 @@ export async function fetchStockEvaluation(
     providersUsed: snapshot.meta.providersUsed,
     marketRegime: marketContext.regime,
     marketContext: deriveMarketContextInfo(marketContext),
+    priceLabel: snapshot.meta.priceLabel,
   };
 }
 
@@ -297,7 +303,7 @@ export async function fetchDashboardStocks(): Promise<DashboardStock[]> {
     // 2. Fetch and evaluate stocks
     const evaluations = await Promise.all(dashboardSymbols.map(async (symbol) => {
       try {
-        const snapshot = await getStockSnapshot(symbol);
+        const snapshot = await getStockSnapshot(symbol, PriceContext.DASHBOARD);
         if (!snapshot) return null;
 
         const strategic = evaluateStrategicGrowth(convertSnapshotToStrategicInputs(snapshot), symbol, marketContext);
@@ -321,6 +327,7 @@ export async function fetchDashboardStocks(): Promise<DashboardStock[]> {
           strategicLabels: strategic.labels,
           tacticalLabels: tactical.labels,
           sector: snapshot.sector || (SYMBOL_SECTOR_MAP[symbol] ?? "Technology"),
+          priceLabel: snapshot.meta.priceLabel,
           decisionLabel: getDecisionLabel(
             tactical.score,
             tactical.status === "AVOID",

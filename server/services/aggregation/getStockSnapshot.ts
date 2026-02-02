@@ -7,6 +7,7 @@ import type {
   HistoricalPrice,
   DataConfidence
 } from "@shared/types";
+import { PriceContext } from "@shared/types";
 
 import { getMarketData } from "../providers/adapter";
 import { stockCache, CACHE_TTL } from "./cache";
@@ -79,9 +80,12 @@ function determineTrend(prices: Array<{ close: number }>): "UP" | "DOWN" | "SIDE
   return "SIDEWAYS";
 }
 
-export async function getStockSnapshot(symbol: string): Promise<StockSnapshot | null> {
+export async function getStockSnapshot(
+  symbol: string,
+  context: PriceContext = PriceContext.DASHBOARD
+): Promise<StockSnapshot | null> {
   const upperSymbol = symbol.toUpperCase();
-  const cacheKey = `snapshot:${upperSymbol}`;
+  const cacheKey = `snapshot:${upperSymbol}:${context}`;
   const cached = stockCache.get<StockSnapshot>(cacheKey);
 
   const log = logger.withContext({ symbol: upperSymbol });
@@ -105,10 +109,10 @@ export async function getStockSnapshot(symbol: string): Promise<StockSnapshot | 
     return genericMock;
   }
 
-  log.cacheMiss("Fetching fresh data via provider adapter");
+  log.cacheMiss(`Fetching fresh data via provider adapter (Context: ${context})`);
 
   try {
-    const marketData = await getMarketData(upperSymbol);
+    const marketData = await getMarketData(upperSymbol, context);
     const { quote, ohlc, technicals, fundamentals, sentiment, options, meta } = marketData;
 
     const companyInfo = SYMBOL_COMPANY_MAP[upperSymbol] || {
@@ -210,6 +214,8 @@ export async function getStockSnapshot(symbol: string): Promise<StockSnapshot | 
       sector: companyInfo.sector,
       industry: companyInfo.industry,
 
+      intraday: marketData.intraday,
+
       fundamentals: {
         ...DEFAULT_FUNDAMENTALS,
         ...stockFundamentals,
@@ -236,6 +242,7 @@ export async function getStockSnapshot(symbol: string): Promise<StockSnapshot | 
         dataFreshness: new Date(),
         eodDate: marketData.priceStatus.eodDate || undefined,
         priceAvailable,
+        priceLabel: marketData.priceStatus.label,
         providersUsed: meta.providersUsed,
         providersFailed: meta.providersFailed,
         confidence: confidenceResult.level,

@@ -8,6 +8,7 @@ import { getMarketContext, getDefaultMarketContextSnapshot } from "./domain/mark
 import { evaluatePhase3ForSymbol } from "./domain/phase3";
 import { evaluatePhase4ForSymbol } from "./domain/phase4";
 import { isUniverseDemoMode } from "./services/stocks/stockUniverse";
+import { PriceContext } from "@shared/types";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -158,7 +159,8 @@ export async function registerRoutes(
         return;
       }
 
-      const evaluation = await fetchStockEvaluation(symbol);
+      const context = (req.query.context as PriceContext) || PriceContext.STOCK_DETAIL;
+      const evaluation = await fetchStockEvaluation(symbol, context);
 
       if (!evaluation) {
         res.status(404).json({ error: "Stock not found" });
