@@ -331,6 +331,37 @@ export function selectDashboardStocks(
         addFromBucket(allCandidates, 6 - selected.length);
     }
 
+    // FALLBACK: If bucket selection is empty but we have stocks, return best stocks by combined score
+    // This ensures dashboard always shows stocks even when none meet strict bucket criteria
+    if (selected.length === 0 && allEvaluatedStocks.length > 0) {
+        logger.warn("DATA_FETCH", "No stocks qualified for bucket selection, using fallback ranking", {
+            totalCandidates: allEvaluatedStocks.length,
+        });
+
+        // Sort by combined score (SHAPE + FORCE)
+        const sortedByScore = [...allEvaluatedStocks].sort((a, b) => {
+            const scoreA = a.strategicScore + a.tacticalScore;
+            const scoreB = b.strategicScore + b.tacticalScore;
+            return scoreB - scoreA;
+        });
+
+        // Take top 6 (or all if fewer)
+        const fallbackSelection = sortedByScore.slice(0, Math.min(6, sortedByScore.length));
+
+        // Update rotation state
+        rotationState = {
+            selectedSymbols: fallbackSelection.map(s => s.symbol),
+            lastRotation: new Date(),
+            bucketAssignments: {},
+        };
+
+        logger.dataFetch(`Dashboard fallback selected ${fallbackSelection.length} stocks by combined score`, {
+            totalCandidates: allEvaluatedStocks.length,
+        });
+
+        return fallbackSelection;
+    }
+
     // Apply stability constraints if not first rotation
     let finalSelection = selected;
     if (!shouldRotateToday() && previousSelection.length > 0) {
@@ -344,6 +375,17 @@ export function selectDashboardStocks(
     } else if (previousSelection.length > 0) {
         // Apply stability (max churn) on new day
         finalSelection = applyStabilityConstraints(selected, previousSelection);
+    }
+
+    // ADDITIONAL FALLBACK: If after all logic we still have too few stocks, fill from remaining
+    if (finalSelection.length < 6 && allEvaluatedStocks.length > finalSelection.length) {
+        const remaining = allEvaluatedStocks
+            .filter(s => !finalSelection.find(f => f.symbol === s.symbol))
+            .sort((a, b) => (b.strategicScore + b.tacticalScore) - (a.strategicScore + a.tacticalScore));
+
+        while (finalSelection.length < 6 && remaining.length > 0) {
+            finalSelection.push(remaining.shift()!);
+        }
     }
 
     // Update rotation state
