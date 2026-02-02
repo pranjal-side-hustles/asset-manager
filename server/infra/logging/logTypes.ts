@@ -3,6 +3,7 @@ export type LogSeverity = "INFO" | "WARN" | "ERROR";
 export type LogType =
   | "DATA_FETCH"
   | "PROVIDER_FAILURE"
+  | "PRICE_SOURCE"
   | "ENGINE_EVALUATION"
   | "CACHE_HIT"
   | "CACHE_MISS"

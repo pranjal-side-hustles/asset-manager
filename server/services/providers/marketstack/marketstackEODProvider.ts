@@ -1,4 +1,5 @@
 import { logger } from "../../../infra/logging/logger";
+import { getDataMode } from "../../../domain/dataMode";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -98,11 +99,13 @@ function getTradingDate(): string {
 }
 
 function getCacheKey(symbol: string, date: string): string {
-  return `${symbol.toUpperCase()}_${date}`;
+  const mode = getDataMode();
+  return `${symbol.toUpperCase()}_${date}_${mode}`;
 }
 
 function getCacheFilePath(symbol: string, date: string): string {
-  return path.join(CACHE_DIR, `${symbol.toUpperCase()}_${date}.json`);
+  const mode = getDataMode();
+  return path.join(CACHE_DIR, `${symbol.toUpperCase()}_${date}_${mode}.json`);
 }
 
 function getFromCache(symbol: string): CacheEntry | null {
@@ -262,25 +265,10 @@ export async function fetchMarketstackEOD(symbol: string): Promise<MarketstackEO
       };
     }
 
-    const latestEOD = responseData.data.find(d => d.symbol === upperSymbol) || responseData.data[0];
-
-    if (latestEOD.symbol !== upperSymbol) {
-      log.dataFetch(`Symbol mismatch in response: requested ${upperSymbol}, got ${latestEOD.symbol}`);
-    }
+    const latestEOD = responseData.data[0];
+    const previousEOD = responseData.data[1];
 
     const closePrice = latestEOD.adj_close || latestEOD.close;
-
-    if (!closePrice || closePrice <= 0) {
-      log.providerFailure(`Invalid price (0 or null) returned for ${upperSymbol}`);
-      return {
-        success: false,
-        data: null,
-        error: "Invalid price data from provider",
-        cached: false,
-      };
-    }
-
-    const previousEOD = responseData.data[1];
     const previousClose = previousEOD ? (previousEOD.adj_close || previousEOD.close) : closePrice;
     const change = closePrice - previousClose;
     const changePercent = previousClose > 0 ? (change / previousClose) * 100 : 0;
