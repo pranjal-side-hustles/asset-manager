@@ -49,7 +49,6 @@ This document describes how to deploy the Asset Manager application on Railway.a
 ```bash
 FINNHUB_API_KEY=your_key_here
 MARKETSTACK_API_KEY=your_key_here
-FMP_API_KEY=your_key_here
 ```
 
 ### Optional
@@ -121,7 +120,6 @@ DATABASE_URL=postgresql://...  # If using PostgreSQL
 1. Get API keys from:
    - https://finnhub.io (free tier available)
    - https://marketstack.com (free tier available)
-   - https://financialmodelingprep.com (free tier available)
 
 2. Deploy to Railway and monitor the build/runtime logs
 

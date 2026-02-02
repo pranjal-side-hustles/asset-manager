@@ -11,7 +11,7 @@ A professional-grade stock analysis platform with dual-horizon evaluation, marke
 
 - **Dual-Horizon Evaluation**: Strategic Growth (4-9 months) + Tactical Sentinel (0-4 months)
 - **Market Context Awareness**: Real-time regime detection (RISK_ON / NEUTRAL / RISK_OFF)
-- **Multi-Provider Data Aggregation**: Finnhub, FMP, Marketstack
+- **Multi-Provider Data Aggregation**: Finnhub, Marketstack
 - **Confidence Scoring**: Data quality assessment
 - **Phase 2 Engines**: Sector Regime, Portfolio Constraints, Relative Ranking
 - **Professional Dashboard**: React-based UI with TailwindCSS
@@ -36,7 +36,6 @@ You'll need free API keys from the following providers:
 | Provider | Sign Up Link | Free Tier |
 |----------|--------------|-----------|
 | **Finnhub** | [finnhub.io](https://finnhub.io/) | 60 calls/min |
-| **Financial Modeling Prep** | [financialmodelingprep.com](https://financialmodelingprep.com/) | 250 calls/day |
 | **Marketstack** | [marketstack.com](https://marketstack.com/) | 100 calls/month |
 
 ---
@@ -74,10 +73,6 @@ Add the following environment variables:
 # Finnhub - Real-time quotes, sentiment, options
 # Get your key at: https://finnhub.io/
 FINNHUB_API_KEY=your_finnhub_api_key_here
-
-# Financial Modeling Prep - Prices, fundamentals, technicals
-# Get your key at: https://financialmodelingprep.com/
-FMP_API_KEY=your_fmp_api_key_here
 
 # Marketstack - Historical OHLC data (fallback)
 # Get your key at: https://marketstack.com/
@@ -134,7 +129,6 @@ For the app to load live data on Vercel, add these **Environment Variables** in 
 |------|-------------|-----------------|
 | `FINNHUB_API_KEY` | Finnhub API key (quotes, sentiment, search, volatility, sectors) | [finnhub.io](https://finnhub.io/) – free tier: 60 calls/min |
 | `MARKETSTACK_API_KEY` | Marketstack API key (historical OHLC, quote fallback) | [marketstack.com](https://marketstack.com/) – free tier: 100 calls/month |
-| `FMP_API_KEY` | Financial Modeling Prep (prices, fundamentals, technicals) | [financialmodelingprep.com](https://financialmodelingprep.com/) – free tier: 250 calls/day |
 | `DATABASE_URL` | PostgreSQL connection string (if using DB) | Your Neon/Supabase/Postgres URL |
 
 **Optional:** `TWELVE_DATA_API_KEY` from [twelvedata.com](https://twelvedata.com/) if you use that provider.
@@ -142,7 +136,7 @@ For the app to load live data on Vercel, add these **Environment Variables** in 
 After saving, **redeploy** the project (Deployments → ⋮ → Redeploy) so the new variables are applied.
 
 **If you see "Failed to Load Data" or "Market data unavailable"**  
-The app now returns a friendly warning instead of a hard error when API keys are missing or the data fetch fails. Add `FINNHUB_API_KEY`, `MARKETSTACK_API_KEY`, and `FMP_API_KEY` in Vercel → Settings → Environment Variables, then redeploy. If the first load times out (Vercel serverless 10s limit), retry; the dashboard may still load with a warning.
+The app now returns a friendly warning instead of a hard error when API keys are missing or the data fetch fails. Add `FINNHUB_API_KEY` and `MARKETSTACK_API_KEY` in Vercel → Settings → Environment Variables, then redeploy. If the first load times out (Vercel serverless 10s limit), retry; the dashboard may still load with a warning.
 
 ---
 
@@ -191,7 +185,7 @@ This repo is set up to deploy on [Railway](https://railway.app) with **zero extr
    - Ensure **rewrites** are present: `/api/*` stays as-is; other paths go to `/index.html` for the SPA. Static files (e.g. `/assets/*`) are served from `dist/public` before rewrites.
 
 3. **Vercel: API routes return 500 or timeout**  
-   The `/api/*` handler runs the Express app in a serverless function. First request can be slow (cold start). Add env vars (e.g. `FINNHUB_API_KEY`, `MARKETSTACK_API_KEY`, `FMP_API_KEY`) in Vercel → Settings → Environment Variables and redeploy.
+   The `/api/*` handler runs the Express app in a serverless function. First request can be slow (cold start). Add env vars (e.g. `FINNHUB_API_KEY`, `MARKETSTACK_API_KEY`) in Vercel → Settings → Environment Variables and redeploy.
 
 4. **Railway: App doesn’t start or health check fails**  
    - Start command must be `node dist/index.cjs` (set in `railway.toml`).  
@@ -199,7 +193,7 @@ This repo is set up to deploy on [Railway](https://railway.app) with **zero extr
    - Health check hits `/api/infra/health`; ensure the service is listening and env vars are set.
 
 5. **Both: Missing API keys**  
-   Without `FINNHUB_API_KEY`, `MARKETSTACK_API_KEY`, and `FMP_API_KEY`, the app may build and run but data calls will fail or fall back to mocks. Add these in the platform’s environment variables (and optionally `DATABASE_URL` if you use the DB).
+   Without `FINNHUB_API_KEY` and `MARKETSTACK_API_KEY`, the app may build and run but data calls will fail or fall back to mocks. Add these in the platform’s environment variables (and optionally `DATABASE_URL` if you use the DB).
 
 ---
 
@@ -396,7 +390,6 @@ This project is private and not licensed for public use.
 ## 🙏 Acknowledgments
 
 - [Finnhub](https://finnhub.io/) for market data
-- [Financial Modeling Prep](https://financialmodelingprep.com/) for fundamentals
 - [Marketstack](https://marketstack.com/) for historical data
 - [Shadcn/UI](https://ui.shadcn.com/) for UI components
 - [TanStack Query](https://tanstack.com/query) for data fetching

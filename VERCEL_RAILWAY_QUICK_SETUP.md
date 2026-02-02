@@ -34,7 +34,6 @@ This has been fixed! Here's what was done:
    VITE_API_URL=https://your-app-production.up.railway.app
    FINNHUB_API_KEY=your_key
    MARKETSTACK_API_KEY=your_key
-   FMP_API_KEY=your_key
    ```
 3. Click Save
 4. Go to Deployments → Click latest → ⋮ → Redeploy
@@ -45,7 +44,6 @@ This has been fixed! Here's what was done:
    ```
    FINNHUB_API_KEY=your_key
    MARKETSTACK_API_KEY=your_key
-   FMP_API_KEY=your_key
    PORT=3000
    NODE_ENV=production
    ```

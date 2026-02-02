@@ -70,7 +70,7 @@ export async function registerRoutes(
         marketContext: deriveMarketContextInfo(fallbackContext.context),
         marketConfidence: fallbackContext.context.confidence,
         dataWarning:
-          "Market data unavailable. Please configure required data providers and redeploy.",
+          "Market data is currently unavailable. Showing demo data.",
       });
     }
   });

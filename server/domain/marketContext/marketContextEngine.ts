@@ -8,6 +8,7 @@ import { fetchSectorPerformance, createDefaultSectors } from "../../services/mar
 import { fetchVIX } from "../../services/market/fetchVolatility";
 import { evaluateMarketRegime } from "./regimeEvaluator";
 import { logger } from "../../infra/logging/logger";
+import { isDemoMode } from "../../domain/dataMode";
 
 let cachedContext: MarketContextSnapshot | null = null;
 let cacheTimestamp: number = 0;
@@ -61,6 +62,10 @@ export async function getMarketContext(forceRefresh = false): Promise<MarketCont
   }
 
   logger.cacheMiss("Fetching fresh market context");
+
+  if (isDemoMode()) {
+    return getDefaultMarketContextSnapshot("Demo mode active - skipping API calls");
+  }
 
   try {
     return await getMarketContextInternal(now);

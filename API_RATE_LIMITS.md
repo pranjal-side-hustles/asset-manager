@@ -6,7 +6,6 @@
 |----------|------|-------|--------|
 | **Finnhub** | Free | 60 calls/minute | ⚠️ Tight during high frequency requests |
 | **Marketstack** | Free | 100 calls/month | ⚠️ Very restrictive |
-| **FMP** | Free | 250 calls/day | ⚠️ Restrictive |
 
 ## Why Dashboard Might Be Blank
 
@@ -23,10 +22,9 @@ curl https://your-railway-app.up.railway.app/api/infra/health
 
 **Fix:**
 1. Go to Railway → Project → Variables
-2. Add these three variables:
+2. Add these two variables:
    - `FINNHUB_API_KEY=your_key_here`
    - `MARKETSTACK_API_KEY=your_key_here`
-   - `FMP_API_KEY=your_key_here`
 3. Railway auto-redeploys
 
 ### 2. **VITE_API_URL Not Set in Vercel**
@@ -69,7 +67,6 @@ If any call hits Finnhub's 60 calls/minute limit, the entire dashboard fails.
 2. **Upgrade API keys** to higher tiers:
    - Finnhub Pro: 600+ calls/min (~$50/mo)
    - Marketstack Pro: Unlimited (~€25/mo)
-   - FMP Basic: 1000+ calls/day (~free→$20/mo)
 
 ### 4. **Marketstack Quota Exceeded**
 Marketstack's 100 calls/month limit runs out very quickly with multiple requests.
@@ -106,9 +103,8 @@ const MIN_DELAY_MS = 100;
 ```typescript
 // If Finnhub is rate limited:
 // 1. Try Marketstack
-// 2. Try FMP
-// 3. Return cached data
-// 4. Return default/placeholder data
+// 2. Return cached data
+// 3. Return default/placeholder data
 ```
 
 ### Caching Strategy
@@ -142,8 +138,7 @@ const MIN_DELAY_MS = 200;
 ### 3. Upgrade Critical APIs
 Most important for free tier:
 1. **Finnhub** - Used for sentiment, options, technical analysis
-2. **FMP** - Used for fundamentals and technicals
-3. **Marketstack** - Used for historical data (can use alternatives)
+2. **Marketstack** - Used for historical data (can use alternatives)
 
 ### 4. Reduce Tracked Stocks
 If you're tracking many stocks, each dashboard load multiplies API calls. Consider:
@@ -155,7 +150,7 @@ If you're tracking many stocks, each dashboard load multiplies API calls. Consid
 
 ### "Market data unavailable – check API keys"
 - API keys not set in Railway Variables
-- OR all three providers are down/rate-limited
+- OR both providers are down/rate-limited
 
 **Fix:** Set API keys in Railway Variables
 
@@ -211,12 +206,10 @@ If you continue to hit rate limits:
 1. **Free Tier (Current)**
    - Finnhub: 60 calls/min
    - Marketstack: 100 calls/month
-   - FMP: 250 calls/day
    
 2. **Upgrade to Starter ($50-100/month)**
    - Finnhub Pro: 600+ calls/min
    - Marketstack Pro: 25,000+ calls/month
-   - FMP Basic: 1000+ calls/day
 
 3. **Production Setup ($200+/month)**
    - Use multiple API providers (redundancy)
