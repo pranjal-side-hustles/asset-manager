@@ -318,25 +318,6 @@ export default function StockDeepDive() {
                 <p className="text-sm font-medium opacity-90 max-w-xl mx-auto">{data.decisionLabel.explanation}</p>
               </div>
             )}
-
-            {/* Market Context Badge */}
-            {data.marketContext && (
-              <div className="flex justify-center">
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span className={cn(
-                      "px-3 py-1.5 rounded-full border text-xs font-semibold uppercase tracking-wider cursor-help",
-                      getMarketContextColor(data.marketContext.label)
-                    )}>
-                      Market: {data.marketContext.label}
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom" className="max-w-xs text-center">
-                    <p className="text-xs">{getMarketContextTooltip(data.marketContext.label)}</p>
-                  </TooltipContent>
-                </Tooltip>
-              </div>
-            )}
           </div>
 
           {/* SECTION 2: Strategy Scores */}
