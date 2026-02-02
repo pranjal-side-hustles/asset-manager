@@ -44,7 +44,7 @@ const SP500_CORE: UniverseStock[] = [
     { symbol: "NVDA", companyName: "NVIDIA Corporation", marketCapCategory: "megaCap", indices: ["SPY", "QQQ"], sector: "Technology" },
     { symbol: "META", companyName: "Meta Platforms Inc.", marketCapCategory: "megaCap", indices: ["SPY", "QQQ"], sector: "Communication Services" },
     { symbol: "TSLA", companyName: "Tesla Inc.", marketCapCategory: "megaCap", indices: ["SPY", "QQQ"], sector: "Consumer Discretionary" },
-    { symbol: "BRK.B", companyName: "Berkshire Hathaway Inc.", marketCapCategory: "megaCap", indices: ["SPY"], sector: "Financial Services" },
+    { symbol: "AVGO", companyName: "Broadcom Inc.", marketCapCategory: "megaCap", indices: ["SPY", "QQQ"], sector: "Technology" },
     { symbol: "LLY", companyName: "Eli Lilly and Company", marketCapCategory: "megaCap", indices: ["SPY"], sector: "Healthcare" },
     { symbol: "UNH", companyName: "UnitedHealth Group Inc.", marketCapCategory: "megaCap", indices: ["SPY"], sector: "Healthcare" },
     { symbol: "V", companyName: "Visa Inc.", marketCapCategory: "megaCap", indices: ["SPY"], sector: "Financial Services" },
