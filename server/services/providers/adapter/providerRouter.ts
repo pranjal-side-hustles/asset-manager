@@ -21,6 +21,7 @@ import { fetchFinnhubInstitutional } from "../finnhub/fetchInstitutional";
 import { fetchFinnhubOptions } from "../finnhub/fetchOptions";
 import { getMockSnapshot } from "../../aggregation/mockFallback";
 import { logger, providerGuard } from "../../../infra";
+import { isDemoMode } from "../../../domain/dataMode";
 
 export interface EODPrice {
   symbol: string;
@@ -80,7 +81,11 @@ export async function getEODPrice(symbol: string): Promise<EODPriceResult> {
   const log = logger.withContext({ symbol: upperSymbol });
 
   if (!isMarketstackAvailable()) {
-    log.providerFailure("Marketstack not available - MARKETSTACK_API_KEY not set");
+    if (isDemoMode()) {
+      log.info("DATA_FETCH", "Marketstack unavailable in Demo Mode - using mock price");
+    } else {
+      log.providerFailure("Marketstack not available - MARKETSTACK_API_KEY not set");
+    }
     return {
       success: false,
       data: null,

@@ -1,4 +1,5 @@
 import { logger } from "../../infra/logging/logger";
+import { getDataMode } from "../../domain/dataMode";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -209,11 +210,8 @@ export async function bootstrapUniverse(): Promise<UniverseStock[]> {
             ];
 
             // 3. Build Fresh Universe (requires API keys for dynamic build, else fallback to static)
-            const finnhubKey = process.env.FINNHUB_API_KEY;
-            const marketstackKey = process.env.MARKETSTACK_API_KEY;
-
-            if (!finnhubKey || !marketstackKey) {
-                logger.warn("FALLBACK", "Missing required API keys (FINNHUB or MARKETSTACK). Using static Failsafe Universe (Demo Mode).");
+            if (getDataMode() === "DEMO") {
+                logger.warn("FALLBACK", "No API keys configured. Using static Failsafe Universe (Demo Mode).");
 
                 // Return static list as failsafe
                 return allStocks.reduce((acc, stock) => {
@@ -278,9 +276,7 @@ export async function getTrackedUniverse(): Promise<UniverseStock[]> {
  * Check if the current universe is in Demo Mode (built from static list).
  */
 export function isUniverseDemoMode(): boolean {
-    const finnhubKey = process.env.FINNHUB_API_KEY;
-    const marketstackKey = process.env.MARKETSTACK_API_KEY;
-    return !finnhubKey || !marketstackKey;
+    return getDataMode() === "DEMO";
 }
 
 /**

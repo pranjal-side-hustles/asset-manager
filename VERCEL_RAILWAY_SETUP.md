@@ -37,7 +37,6 @@ This document explains how to deploy the frontend on **Vercel** and the backend 
 | `VITE_API_URL` | `https://your-railway-url.up.railway.app` | Your Railway backend URL (no trailing slash) |
 | `FINNHUB_API_KEY` | Your key | Get from [finnhub.io](https://finnhub.io/) |
 | `MARKETSTACK_API_KEY` | Your key | Get from [marketstack.com](https://marketstack.com/) |
-| `FMP_API_KEY` | Your key | Get from [financialmodelingprep.com](https://financialmodelingprep.com/) |
 
 **Important:** Do NOT include a trailing slash in `VITE_API_URL`
 
@@ -52,7 +51,6 @@ This document explains how to deploy the frontend on **Vercel** and the backend 
 |------|-------|-------------|
 | `FINNHUB_API_KEY` | Your key | Same as Vercel |
 | `MARKETSTACK_API_KEY` | Your key | Same as Vercel |
-| `FMP_API_KEY` | Your key | Same as Vercel |
 | `PORT` | `3000` | Default port (Railway usually sets this automatically) |
 | `NODE_ENV` | `production` | Environment mode |
 
@@ -176,7 +174,6 @@ This document explains how to deploy the frontend on **Vercel** and the backend 
 ✓ VITE_API_URL = https://your-railway-url.up.railway.app
 ✓ FINNHUB_API_KEY = your_key
 ✓ MARKETSTACK_API_KEY = your_key
-✓ FMP_API_KEY = your_key
 ```
 
 ### Railway (Variables)
@@ -184,7 +181,6 @@ This document explains how to deploy the frontend on **Vercel** and the backend 
 ```
 ✓ FINNHUB_API_KEY = your_key
 ✓ MARKETSTACK_API_KEY = your_key
-✓ FMP_API_KEY = your_key
 ✓ PORT = 3000 (or auto-set by Railway)
 ✓ NODE_ENV = production
 ```
@@ -228,7 +224,6 @@ For local development with both services:
 # Terminal 1: Start Railway-like backend locally
 export FINNHUB_API_KEY=your_key
 export MARKETSTACK_API_KEY=your_key
-export FMP_API_KEY=your_key
 npm run dev
 
 # Terminal 2: Frontend points to localhost backend
