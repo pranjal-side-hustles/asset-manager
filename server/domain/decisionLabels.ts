@@ -68,7 +68,7 @@ export function getDecisionLabel(
         return {
             label: "PAUSE",
             displayText: "Pause for Now",
-            explanation: "Market conditions are not supportive right now",
+            explanation: "Market risk overrides FORCE signals",
             canAct: false,
             riskBlockReasons: ["Market regime is Risk-Off"],
         };
@@ -79,7 +79,7 @@ export function getDecisionLabel(
         return {
             label: "GOOD_TO_ACT",
             displayText: "Good to Act Now",
-            explanation: "Trend and confirmation are improving",
+            explanation: "SHAPE is solid, FORCE is aligned",
             canAct: true,
             riskBlockReasons: [],
         };
@@ -90,7 +90,7 @@ export function getDecisionLabel(
         return {
             label: "WORTH_A_SMALL_LOOK",
             displayText: "Worth a Small Look",
-            explanation: "Conditions are developing positively",
+            explanation: "SHAPE is solid, FORCE still developing",
             canAct: true, // Limited action
             riskBlockReasons: [],
         };
@@ -113,23 +113,17 @@ function getKeepAnEyeOnReason(
     timingScore: number,
     confirmationLevel?: string
 ): string {
-    const reasons: string[] = [];
-
-    if (timingScore < TIMING_THRESHOLD_FOR_ACTION) {
-        reasons.push(`Strong company, timing still forming`);
+    if (timingScore < 40) {
+        return "FORCE is weak despite acceptable SHAPE";
     }
 
     if (confirmationLevel === "NONE") {
-        reasons.push("Conditions are not yet optimal for action");
+        return "SHAPE is constructive, FORCE needs confirmation";
     } else if (confirmationLevel === "WEAK") {
-        reasons.push("Trend and confirmation are improving");
+        return "SHAPE and FORCE are developing together";
     }
 
-    if (reasons.length === 0) {
-        reasons.push("Watch for better setup");
-    }
-
-    return reasons.join(". ");
+    return "SHAPE is solid, FORCE still developing";
 }
 
 // ============================================================================
