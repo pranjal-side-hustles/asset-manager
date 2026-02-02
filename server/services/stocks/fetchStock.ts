@@ -25,17 +25,35 @@ import type { PortfolioSnapshot } from "@shared/types/portfolio";
 import { deriveHorizonLabel } from "../../domain/calibration";
 import { getDecisionLabel } from "../../domain/decisionLabels";
 
-const TRACKED_SYMBOLS = [
-  "AAPL",
-  "MSFT",
-  "GOOGL",
-  "AMZN",
-  "NVDA",
-  "META",
-  "TSLA",
-  "JPM",
-  "V",
+// Stock universe with market cap categories for diversity filtering
+// Mega Cap: > $200B, Large Cap: $10B-200B, Mid Cap: $2B-10B, Small Cap: < $2B
+const STOCK_UNIVERSE = {
+  megaCap: ["AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "TSLA", "BRK.B", "LLY", "UNH"],
+  largeCap: ["JPM", "V", "MA", "HD", "CRM", "NFLX", "COST", "AMD", "ORCL", "ADBE"],
+  midCap: ["SNAP", "ROKU", "PINS", "CRWD", "DDOG", "ZS", "NET", "SNOW", "BILL", "MDB"],
+  smallCap: ["UPST", "AFRM", "SOFI", "HOOD", "RIVN", "LCID", "PLTR", "PATH", "U", "RBLX"],
+};
+
+// Full list of all tracked symbols (for list views)
+const ALL_TRACKED_SYMBOLS = [
+  ...STOCK_UNIVERSE.megaCap,
+  ...STOCK_UNIVERSE.largeCap,
+  ...STOCK_UNIVERSE.midCap,
+  ...STOCK_UNIVERSE.smallCap,
 ];
+
+// Dashboard subset (limited to 9 for performance)
+const DASHBOARD_SYMBOLS = [
+  "AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "TSLA", "JPM", "V"
+];
+
+// Market cap category lookup
+function getMarketCapCategory(symbol: string): "megaCap" | "largeCap" | "midCap" | "smallCap" {
+  if (STOCK_UNIVERSE.megaCap.includes(symbol)) return "megaCap";
+  if (STOCK_UNIVERSE.largeCap.includes(symbol)) return "largeCap";
+  if (STOCK_UNIVERSE.midCap.includes(symbol)) return "midCap";
+  return "smallCap";
+}
 
 // Fallback sector mapping for known symbols when provider data is unavailable
 const SYMBOL_SECTOR_MAP: Record<string, string> = {
@@ -48,6 +66,17 @@ const SYMBOL_SECTOR_MAP: Record<string, string> = {
   TSLA: "Consumer Discretionary",
   JPM: "Financial Services",
   V: "Financial Services",
+  MA: "Financial Services",
+  HD: "Consumer Discretionary",
+  CRM: "Technology",
+  NFLX: "Communication Services",
+  COST: "Consumer Staples",
+  AMD: "Technology",
+  ORCL: "Technology",
+  ADBE: "Technology",
+  BRK: "Financial Services",
+  LLY: "Healthcare",
+  UNH: "Healthcare",
 };
 
 export interface ExtendedStockEvaluationResponse
@@ -282,7 +311,7 @@ export async function fetchDashboardStocks(): Promise<DashboardStock[]> {
   // With 100 calls/month quota, stocks take priority over indices/sectors
   // Fetch stocks SEQUENTIALLY to avoid quota race conditions
   const results: PromiseSettledResult<StockSnapshot | null>[] = [];
-  for (const symbol of TRACKED_SYMBOLS) {
+  for (const symbol of DASHBOARD_SYMBOLS) {
     try {
       const snapshot = await getStockSnapshot(symbol);
       results.push({ status: "fulfilled", value: snapshot });
@@ -309,7 +338,7 @@ export async function fetchDashboardStocks(): Promise<DashboardStock[]> {
 
   for (let i = 0; i < results.length; i++) {
     const result = results[i];
-    const symbol = TRACKED_SYMBOLS[i];
+    const symbol = DASHBOARD_SYMBOLS[i];
 
     if (result.status === "fulfilled" && result.value) {
       const snapshot = result.value;
