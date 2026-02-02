@@ -8,6 +8,7 @@ import { getMarketContext, getDefaultMarketContextSnapshot } from "./domain/mark
 import { evaluatePhase3ForSymbol } from "./domain/phase3";
 import { evaluatePhase4ForSymbol } from "./domain/phase4";
 import { isUniverseDemoMode } from "./services/stocks/stockUniverse";
+import { getDataMode } from "./domain/dataMode";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -62,8 +63,10 @@ export async function registerRoutes(
       console.error("Dashboard critical failure:", error);
       const fallbackContext = await getMarketContext();
 
-      // EMERGENCY FALLBACK: Populate stocks so dashboard is never empty
+      // EMERGENCY FALLBACK: Respect mode boundaries
       let fallbackStocks: any[] = [];
+      const mode = getDataMode();
+
       try {
         const { getDashboardSample } = await import("./services/stocks/stockUniverse");
         const { getStockSnapshot } = await import("./services/aggregation/getStockSnapshot");
@@ -76,7 +79,7 @@ export async function registerRoutes(
           price: snap!.price,
           change: snap!.change,
           changePercent: snap!.changePercent,
-          priceAvailable: true,
+          priceAvailable: snap!.meta.priceAvailable,
           strategicScore: snap!.symbol === "AAPL" || snap!.symbol === "NVDA" ? 72 : 64,
           tacticalScore: snap!.symbol === "AAPL" || snap!.symbol === "NVDA" ? 78 : 58,
           strategicStatus: "HEALTHY",
@@ -94,7 +97,7 @@ export async function registerRoutes(
       res.json({
         stocks: fallbackStocks,
         lastUpdated: Date.now(),
-        isDemoMode: true, // Keep this for fallback
+        isDemoMode: mode === "DEMO",
         marketRegime: fallbackContext.context.regime,
         marketContext: deriveMarketContextInfo(fallbackContext.context),
         marketConfidence: fallbackContext.context.confidence,

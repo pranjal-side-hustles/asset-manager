@@ -1,4 +1,5 @@
 import { logger } from "../../../infra/logging/logger";
+import { getDataMode } from "../../../domain/dataMode";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -98,11 +99,13 @@ function getTradingDate(): string {
 }
 
 function getCacheKey(symbol: string, date: string): string {
-  return `${symbol.toUpperCase()}_${date}`;
+  const mode = getDataMode();
+  return `${symbol.toUpperCase()}_${date}_${mode}`;
 }
 
 function getCacheFilePath(symbol: string, date: string): string {
-  return path.join(CACHE_DIR, `${symbol.toUpperCase()}_${date}.json`);
+  const mode = getDataMode();
+  return path.join(CACHE_DIR, `${symbol.toUpperCase()}_${date}_${mode}.json`);
 }
 
 function getFromCache(symbol: string): CacheEntry | null {
