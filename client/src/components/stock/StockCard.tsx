@@ -57,8 +57,15 @@ export function StockCard({ stock }: StockCardProps) {
         <CardContent className="p-6 space-y-6 flex-1 flex flex-col">
           {/* Header */}
           <div className="flex justify-between items-start">
-            <div>
-              <h3 className="text-2xl font-bold tracking-tight text-foreground/90">{stock.symbol}</h3>
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-2">
+                <h3 className="text-2xl font-bold tracking-tight text-foreground/90">{stock.symbol}</h3>
+                {stock.marketContext && (
+                  <span className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-tighter">
+                    Market: {stock.marketContext.label}
+                  </span>
+                )}
+              </div>
               <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold truncate max-w-[150px]">
                 {stock.companyName}
               </p>
@@ -135,14 +142,6 @@ export function StockCard({ stock }: StockCardProps) {
               </div>
               <p className="text-[10px] text-muted-foreground leading-tight font-medium">Measures current market positioning and tone.</p>
             </div>
-          </div>
-
-          {/* Market Status (Footer) */}
-          <div className="pt-4 mt-auto border-t border-border/10 flex justify-between items-center">
-            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Market Context</span>
-            <span className="text-[10px] font-bold text-slate-500 uppercase">
-              {stock.marketRegime === 'RISK_ON' ? 'Supportive' : stock.marketRegime === 'RISK_OFF' ? 'Risk-Off' : 'Neutral'}
-            </span>
           </div>
         </CardContent>
       </Card>

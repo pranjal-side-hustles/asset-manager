@@ -1,6 +1,11 @@
 import type { StrategicGrowthEvaluation, TacticalSentinelEvaluation, StrategicGrowthStatus, TacticalSentinelStatus, StrategicLabels, TacticalLabels } from "./horizon";
 import type { Stock, StockQuote, DataConfidence } from "./stock";
 
+export interface MarketContextInfo {
+  label: "Supportive" | "Mixed" | "Cautious";
+  description: string;
+}
+
 export interface EngineMetadata {
   engine: string;
   version: string;
@@ -21,6 +26,12 @@ export interface StockEvaluationResponse {
   warnings?: string[];
   providersUsed?: string[];
   marketRegime?: "RISK_ON" | "RISK_OFF" | "NEUTRAL";
+  marketContext?: MarketContextInfo;
+  decisionLabel?: {
+    displayText: string;
+    explanation: string;
+    label: "GOOD_TO_ACT" | "WORTH_A_SMALL_LOOK" | "KEEP_AN_EYE_ON" | "PAUSE";
+  };
 }
 
 export interface DashboardStock {
@@ -65,12 +76,14 @@ export interface DashboardStock {
     event: "pass" | "caution" | "fail";
   };
   sentimentScore?: number;
+  marketContext?: MarketContextInfo;
 }
 
 export interface DashboardResponse {
   stocks: DashboardStock[];
   lastUpdated: number;
   marketRegime?: "RISK_ON" | "RISK_OFF" | "NEUTRAL";
+  marketContext?: MarketContextInfo;
   marketConfidence?: "HIGH" | "MEDIUM" | "LOW";
   /** Shown when API keys are missing or data fetch failed; app still loads. */
   dataWarning?: string;

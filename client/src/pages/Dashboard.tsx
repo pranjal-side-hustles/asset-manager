@@ -57,7 +57,7 @@ export default function Dashboard() {
             <div className="px-4 py-1.5 rounded-full bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800 flex items-center gap-3">
               <div className="w-1.5 h-1.5 rounded-full bg-slate-300 animate-pulse" />
               <span className="text-[11px] font-medium text-slate-400 tracking-wider uppercase">
-                Market Status: {data.marketRegime === 'RISK_ON' ? 'Supportive' : data.marketRegime === 'RISK_OFF' ? 'Risk-Off' : 'Neutral'}
+                Market Status: {data.marketContext?.label || (data.marketRegime === 'RISK_ON' ? 'Supportive' : data.marketRegime === 'RISK_OFF' ? 'Cautious' : 'Mixed')}
               </span>
               <span className="text-slate-200 dark:text-slate-800">|</span>
               <span className="text-[11px] font-medium text-slate-400 tracking-wider uppercase">
