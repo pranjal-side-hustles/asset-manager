@@ -63,11 +63,30 @@ function SummaryTile({ title, count, icon, color, onClick }: SummaryTileProps) {
 export function MarketContextPanel({ data, onSummaryClick }: MarketContextPanelProps) {
     const regimeColor = getRegimeColor(data.marketRegime);
     const regimeLabel = getRegimeLabel(data.marketRegime);
+    const isRiskOff = data.marketRegime === "RISK_OFF";
 
-    // Calculate summary counts
-    const readyNowCount = data.stocks.filter(s => s.decisionLabel?.label === "GOOD_TO_ACT").length;
-    const keepWatchingCount = data.stocks.filter(s => s.decisionLabel?.label === "KEEP_AN_EYE_ON").length;
+    // Calculate summary counts using exact filter logic
+    // Ready Now: FORCE ≥ 65, SHAPE ≥ 55, no pause, market not Risk-Off
+    const readyNowCount = data.stocks.filter(s =>
+        s.tacticalScore >= 65 &&
+        s.strategicScore >= 55 &&
+        s.decisionLabel?.label !== "PAUSE" &&
+        !isRiskOff
+    ).length;
+
+    // Keep Watching: SHAPE ≥ 60 AND (FORCE 40-64 OR blocked by confirmation/market)
+    const keepWatchingCount = data.stocks.filter(s => {
+        const strongShape = s.strategicScore >= 60;
+        const developingForce = s.tacticalScore >= 40 && s.tacticalScore < 65;
+        const forceBlockedByConfirmation = s.tacticalScore >= 65 && s.decisionLabel?.label === "KEEP_AN_EYE_ON";
+        const forceBlockedByMarket = s.tacticalScore >= 65 && isRiskOff;
+        return strongShape && (developingForce || forceBlockedByConfirmation || forceBlockedByMarket);
+    }).length;
+
+    // SHAPE Overview: SHAPE ≥ 65
     const strongShapeCount = data.stocks.filter(s => s.strategicScore >= 65).length;
+
+    // FORCE Overview: FORCE ≥ 65
     const strongForceCount = data.stocks.filter(s => s.tacticalScore >= 65).length;
 
     return (

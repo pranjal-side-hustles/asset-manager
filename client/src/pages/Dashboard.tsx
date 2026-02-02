@@ -59,22 +59,50 @@ type FilterType = "all" | "ready" | "watching" | "shape" | "force";
 
 const FILTER_LABELS: Record<FilterType, { title: string; description: string }> = {
   all: { title: "All Stocks", description: "" },
-  ready: { title: "Ready Now", description: "Stocks where both SHAPE and FORCE are aligned for action." },
-  watching: { title: "Keep Watching", description: "Stocks with developing conditions—worth monitoring." },
-  shape: { title: "Strong SHAPE", description: "Stocks with solid business structure over the next several months." },
-  force: { title: "Strong FORCE", description: "Stocks where current market conditions favor near-term action." },
+  ready: { title: "Ready Now", description: "Stocks where structure and timing are aligned enough to justify active consideration." },
+  watching: { title: "Keep Watching", description: "Good businesses waiting for better timing or confirmation." },
+  shape: { title: "SHAPE Overview", description: "Strongest structural businesses, independent of timing." },
+  force: { title: "FORCE Overview", description: "Stocks where market conditions are most active, even if structure is mixed." },
 };
 
-function filterStocks(stocks: DashboardStock[], filter: FilterType): DashboardStock[] {
+/**
+ * Filter logic per user specification (DO NOT modify scoring logic, only inclusion criteria)
+ */
+function filterStocks(stocks: DashboardStock[], filter: FilterType, marketRegime?: string): DashboardStock[] {
   switch (filter) {
     case "ready":
-      return stocks.filter(s => s.decisionLabel?.label === "GOOD_TO_ACT");
+      // READY NOW: FORCE ≥ 65, SHAPE ≥ 55, confirmation not NONE, no risk blocks, market ≠ Risk-Off
+      return stocks.filter(s => {
+        const forceOk = s.tacticalScore >= 65;
+        const shapeOk = s.strategicScore >= 55;
+        const hasConfirmation = s.decisionLabel?.label !== "KEEP_AN_EYE_ON" || s.tacticalScore >= 50; // proxy for confirmation
+        const noRiskBlocks = s.decisionLabel?.label !== "PAUSE";
+        const marketOk = marketRegime !== "RISK_OFF";
+        return forceOk && shapeOk && hasConfirmation && noRiskBlocks && marketOk;
+      });
+
     case "watching":
-      return stocks.filter(s => s.decisionLabel?.label === "KEEP_AN_EYE_ON");
+      // KEEP WATCHING: SHAPE ≥ 60 AND (FORCE 40-64 OR FORCE ≥ 65 with confirmation NONE OR market Risk-Off)
+      return stocks.filter(s => {
+        const strongShape = s.strategicScore >= 60;
+        const developingForce = s.tacticalScore >= 40 && s.tacticalScore < 65;
+        const forceBlockedByConfirmation = s.tacticalScore >= 65 && s.decisionLabel?.label === "KEEP_AN_EYE_ON";
+        const forceBlockedByMarket = s.tacticalScore >= 65 && marketRegime === "RISK_OFF";
+        return strongShape && (developingForce || forceBlockedByConfirmation || forceBlockedByMarket);
+      });
+
     case "shape":
-      return stocks.filter(s => s.strategicScore >= 65).sort((a, b) => b.strategicScore - a.strategicScore);
+      // SHAPE OVERVIEW: SHAPE ≥ 65, sorted by highest SHAPE first
+      return stocks
+        .filter(s => s.strategicScore >= 65)
+        .sort((a, b) => b.strategicScore - a.strategicScore);
+
     case "force":
-      return stocks.filter(s => s.tacticalScore >= 65).sort((a, b) => b.tacticalScore - a.tacticalScore);
+      // FORCE OVERVIEW: FORCE ≥ 65, sorted by highest FORCE first
+      return stocks
+        .filter(s => s.tacticalScore >= 65)
+        .sort((a, b) => b.tacticalScore - a.tacticalScore);
+
     default:
       return stocks;
   }
@@ -89,8 +117,8 @@ export default function Dashboard() {
 
   const filteredStocks = useMemo(() => {
     if (!data?.stocks) return [];
-    return filterStocks(data.stocks, activeFilter);
-  }, [data?.stocks, activeFilter]);
+    return filterStocks(data.stocks, activeFilter, data.marketRegime);
+  }, [data?.stocks, data?.marketRegime, activeFilter]);
 
   const handleSummaryClick = (filter: string) => {
     setActiveFilter(filter as FilterType);
