@@ -82,18 +82,26 @@ export function StockCard({ stock }: StockCardProps) {
               </p>
             </div>
             <div className="text-right">
-              <div className="text-base font-semibold text-foreground/70">
-                ${stock.price.toLocaleString("en-US", { minimumFractionDigits: 2 })}
-              </div>
-              <div className="text-[9px] text-muted-foreground/60 leading-tight">
-                {stock.priceLabel || "Last Market Close"}
-              </div>
-              <div className={cn(
-                "text-[10px] font-medium mt-0.5",
-                stock.changePercent >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"
-              )}>
-                {stock.changePercent >= 0 ? "+" : ""}{stock.changePercent.toFixed(2)}%
-              </div>
+              {stock.priceAvailable && stock.price > 0 ? (
+                <>
+                  <div className="text-base font-semibold text-foreground/70">
+                    ${stock.price.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                  </div>
+                  <div className="text-[9px] text-muted-foreground/60 leading-tight">
+                    {stock.priceLabel || "Last Market Close"}
+                  </div>
+                  <div className={cn(
+                    "text-[10px] font-medium mt-0.5",
+                    stock.changePercent >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"
+                  )}>
+                    {stock.changePercent >= 0 ? "+" : ""}{stock.changePercent.toFixed(2)}%
+                  </div>
+                </>
+              ) : (
+                <div className="text-xs font-medium text-muted-foreground italic mt-2">
+                  Price unavailable (EOD)
+                </div>
+              )}
             </div>
           </div>
 

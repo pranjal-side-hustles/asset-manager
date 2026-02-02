@@ -13,12 +13,12 @@ interface StockHeaderProps {
   providersUsed?: string[];
 }
 
-export function StockHeader({ 
-  stock, 
-  quote, 
-  dataConfidence, 
-  warnings, 
-  providersUsed 
+export function StockHeader({
+  stock,
+  quote,
+  dataConfidence,
+  warnings,
+  providersUsed
 }: StockHeaderProps) {
   const isPositive = quote.change >= 0;
 
@@ -41,10 +41,10 @@ export function StockHeader({
               {stock.sector}
             </span>
             {dataConfidence && (
-              <DataConfidenceBadge 
-                confidence={dataConfidence} 
-                warnings={warnings} 
-                providersUsed={providersUsed} 
+              <DataConfidenceBadge
+                confidence={dataConfidence}
+                warnings={warnings}
+                providersUsed={providersUsed}
               />
             )}
           </div>
@@ -55,30 +55,38 @@ export function StockHeader({
 
         <div className="flex items-end gap-4">
           <div className="text-right">
-            <p className="text-3xl md:text-4xl font-bold tracking-tight" data-testid="text-price">
-              ${quote.price.toLocaleString("en-US", {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              })}
-            </p>
-            <div
-              className={cn(
-                "flex items-center justify-end gap-1 text-sm font-medium",
-                isPositive ? "text-stock-positive" : "text-stock-negative"
-              )}
-              data-testid="text-change"
-            >
-              {isPositive ? (
-                <TrendingUp className="w-4 h-4" />
-              ) : (
-                <TrendingDown className="w-4 h-4" />
-              )}
-              <span>
-                {isPositive ? "+" : ""}
-                {quote.change.toFixed(2)} ({isPositive ? "+" : ""}
-                {quote.changePercent.toFixed(2)}%)
-              </span>
-            </div>
+            {quote.price > 0 ? (
+              <>
+                <p className="text-3xl md:text-4xl font-bold tracking-tight" data-testid="text-price">
+                  ${quote.price.toLocaleString("en-US", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
+                </p>
+                <div
+                  className={cn(
+                    "flex items-center justify-end gap-1 text-sm font-medium",
+                    isPositive ? "text-stock-positive" : "text-stock-negative"
+                  )}
+                  data-testid="text-change"
+                >
+                  {isPositive ? (
+                    <TrendingUp className="w-4 h-4" />
+                  ) : (
+                    <TrendingDown className="w-4 h-4" />
+                  )}
+                  <span>
+                    {isPositive ? "+" : ""}
+                    {quote.change.toFixed(2)} ({isPositive ? "+" : ""}
+                    {quote.changePercent.toFixed(2)}%)
+                  </span>
+                </div>
+              </>
+            ) : (
+              <p className="text-xl md:text-2xl font-semibold text-muted-foreground italic mb-2">
+                Price unavailable (EOD)
+              </p>
+            )}
           </div>
         </div>
       </div>

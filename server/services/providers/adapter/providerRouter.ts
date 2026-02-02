@@ -378,8 +378,9 @@ export async function getMarketData(
   if (institutionalData) providersUsed.push("Finnhub-Institutional");
   if (optionsData) providersUsed.push("Finnhub-Options");
 
-  // DEMO MODE FAILSAFE: If price is missing, return mock data to avoid blank states
-  if (priceSource === "Unavailable") {
+  // DEMO MODE FAILSAFE: If price is missing, return mock data ONLY if we are in DEMO mode.
+  // In LIVE mode, we must return "Unavailable" to avoid contaminating data with fake numbers.
+  if (priceSource === "Unavailable" && isDemoMode()) {
     const mockSnapshot = getMockSnapshot(upperSymbol);
     if (mockSnapshot) {
       log.warn("FALLBACK", `Entering Demo Mode for ${upperSymbol} due to provider failure`);
@@ -440,6 +441,8 @@ export async function getMarketData(
         },
       };
     }
+  } else if (priceSource === "Unavailable") {
+    log.warn("DATA_FETCH", `Price unavailable for ${upperSymbol} in LIVE mode. Returning available auxiliary data without price.`);
   }
 
   return {

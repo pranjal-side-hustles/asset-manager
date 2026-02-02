@@ -262,7 +262,45 @@ export async function getStockSnapshot(
     return snapshot;
   } catch (error) {
     log.error("PROVIDER_FAILURE", `Failed to fetch stock data: ${error}`);
-    return getMockSnapshot(upperSymbol) || generateGenericMock(upperSymbol);
+
+    // STRICT MODE: Only fallback to mock data if we are in DEMO mode.
+    // In LIVE mode, we must return a sanitised error state to avoid fabricated prices.
+    if (isDemoMode()) {
+      return getMockSnapshot(upperSymbol) || generateGenericMock(upperSymbol);
+    }
+
+    // Live Mode Emergency Fallback (No fake prices)
+    return {
+      symbol: upperSymbol,
+      companyName: upperSymbol,
+      price: 0,
+      change: 0,
+      changePercent: 0,
+      volume: 0,
+      marketCap: 0,
+      sector: "Unknown",
+      industry: "Unknown",
+      fundamentals: { revenueGrowthYoY: [], epsGrowthYoY: [] },
+      technicals: {
+        atr: 0, atrPercent: 0, rsi: 0,
+        movingAverages: { ma20: 0, ma50: 0, ma200: 0 },
+        priceVsMA50: 0, priceVsMA200: 0,
+        weeklyTrend: "NEUTRAL", dailyTrend: "NEUTRAL"
+      },
+      sentiment: { analystRating: 3 }, // Hold
+      options: {},
+      historicalPrices: [],
+      meta: {
+        dataFreshness: new Date(),
+        priceAvailable: false,
+        providersUsed: [],
+        providersFailed: ["All-Providers"],
+        confidence: "LOW",
+        confidenceScore: 0,
+        confidenceReasons: ["Strict Mode: Provider failed in Live Mode"],
+        warnings: ["Price Unavailable (Provider Failure)"],
+      },
+    };
   }
 }
 

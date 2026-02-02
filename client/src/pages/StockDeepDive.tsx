@@ -353,7 +353,11 @@ export default function StockDeepDive() {
               <p className="text-lg text-muted-foreground">{data.stock.companyName}</p>
             </div>
             <div className="text-right space-y-1">
-              <div className="text-2xl font-bold">${data.quote.price.toLocaleString("en-US", { minimumFractionDigits: 2 })}</div>
+              {data.quote.price > 0 ? (
+                <div className="text-2xl font-bold">${data.quote.price.toLocaleString("en-US", { minimumFractionDigits: 2 })}</div>
+              ) : (
+                <div className="text-xl font-semibold text-muted-foreground italic">Price unavailable (EOD)</div>
+              )}
               <div className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">
                 {data.priceLabel || "Last market close"}
               </div>
