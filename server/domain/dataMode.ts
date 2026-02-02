@@ -33,9 +33,12 @@ export function logDataMode(): void {
     const marketstackKey = process.env.MARKETSTACK_API_KEY;
     const finnhubKey = process.env.FINNHUB_API_KEY;
 
+    // Mask keys for logging
+    const mask = (key?: string) => key ? `${key.substring(0, 4)}...${key.substring(key.length - 4)}` : "MISSING";
+
     if (mode === "LIVE") {
-        logger.info("DATA_FETCH", `Application running in LIVE mode (Marketstack: ${!!marketstackKey}, Finnhub: ${!!finnhubKey})`);
+        logger.info("DATA_FETCH", `Application running in LIVE mode (Marketstack: ${mask(marketstackKey)}, Finnhub: ${mask(finnhubKey)})`);
     } else {
-        logger.warn("DATA_FETCH", "Application running in DEMO mode - No API keys configured. Using representative data.");
+        logger.warn("DATA_FETCH", "Application running in DEMO mode - No API keys configured or found in environment.");
     }
 }

@@ -98,7 +98,54 @@ export async function getStockSnapshot(symbol: string): Promise<StockSnapshot | 
       stockCache.set(cacheKey, mock, CACHE_TTL.SNAPSHOT);
       return mock;
     }
-    // Continue to generic fallback if no specific mock exists
+
+    // Fallback: Generate a generic mock snapshot for Demo Mode so no symbol returns null or fails
+    log.info("DATA_FETCH", `Generating generic mock snapshot for ${upperSymbol} (Demo Mode)`);
+    const genericMock: StockSnapshot = {
+      symbol: upperSymbol,
+      companyName: `${upperSymbol} Inc. (Demo)`,
+      price: 150.00 + (Math.random() * 50),
+      change: (Math.random() * 4) - 2,
+      changePercent: (Math.random() * 4) - 2,
+      volume: 1000000 + Math.floor(Math.random() * 5000000),
+      marketCap: 50000000000 + (Math.random() * 100000000000),
+      sector: "Technology",
+      industry: "Various",
+      fundamentals: {
+        revenueGrowthYoY: [5.2, 7.4, 6.1],
+        epsGrowthYoY: [10.5, 12.2, 8.8],
+      },
+      technicals: {
+        atr: 3.5,
+        atrPercent: 2.1,
+        rsi: 55,
+        movingAverages: { ma20: 145, ma50: 140, ma200: 130 },
+        priceVsMA50: 5.2,
+        priceVsMA200: 12.5,
+        weeklyTrend: "UP",
+        dailyTrend: "UP",
+      },
+      sentiment: {
+        analystRating: 4.0,
+        insiderBuying: true,
+        putCallRatio: 0.85,
+      },
+      options: {
+      },
+      historicalPrices: [],
+      meta: {
+        dataFreshness: new Date(),
+        priceAvailable: true,
+        providersUsed: ["Mock-Generic"],
+        providersFailed: [],
+        confidence: "MEDIUM",
+        confidenceScore: 70,
+        confidenceReasons: ["Generic mock data generated for demo mode"],
+        warnings: ["Using representative data (Demo Mode)"],
+      },
+    };
+    stockCache.set(cacheKey, genericMock, CACHE_TTL.SNAPSHOT);
+    return genericMock;
   }
 
   log.cacheMiss("Fetching fresh data via provider adapter");
