@@ -1,11 +1,6 @@
-/**
- * Stock Universe Service
- * 
- * Manages the tracked stock universe for SHAPE/FORCE evaluation.
- * Universe is broader than dashboard and powers all list views.
- */
-
 import { logger } from "../../infra/logging/logger";
+import * as fs from "fs";
+import * as path from "path";
 
 // ============================================================================
 // TYPES
@@ -22,14 +17,29 @@ export interface UniverseStock {
     avgDailyDollarVolume?: number;
 }
 
+interface UniverseCache {
+    stocks: UniverseStock[];
+    builtAt: number;
+    version: string;
+}
+
+// ============================================================================
+// CONFIG & CACHE
+// ============================================================================
+
+const CACHE_FILE = path.join(process.cwd(), ".cache", "universe.json");
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+const UNIVERSE_VERSION = "1.0.0";
+
+let memoryCache: UniverseCache | null = null;
+let bootstrapPromise: Promise<UniverseStock[]> | null = null;
+
 // ============================================================================
 // STATIC UNIVERSE (Phase 1)
 // ============================================================================
 
 /**
  * Static universe constituents organized by index and market cap.
- * This is the initial implementation before dynamic fetching is enabled.
- * 
  * Target: 800-1500 stocks
  * Current: ~150 high-quality names for demonstration
  */
@@ -153,54 +163,148 @@ const VALUE_DIVIDEND: UniverseStock[] = [
 ];
 
 // ============================================================================
-// UNIVERSE MANAGEMENT
+// BOOTSTRAP & CACHE MANAGEMENT
 // ============================================================================
 
 /**
- * Get the complete tracked universe.
- * Combines all constituent lists and removes duplicates.
+ * Bootstrap the tracked universe.
+ * Validates API keys and builds the final stock list.
+ * Caches result for 24 hours.
  */
-export function getTrackedUniverse(): UniverseStock[] {
-    const allStocks = [
-        ...SP500_CORE,
-        ...NASDAQ_GROWTH,
-        ...MID_CAP_GROWTH,
-        ...SMALL_CAP_GROWTH,
-        ...VALUE_DIVIDEND,
-    ];
+export async function bootstrapUniverse(): Promise<UniverseStock[]> {
+    if (bootstrapPromise) return bootstrapPromise;
 
-    // Remove duplicates by symbol
-    const uniqueStocks = allStocks.reduce((acc, stock) => {
-        if (!acc.find(s => s.symbol === stock.symbol)) {
-            acc.push(stock);
+    bootstrapPromise = (async () => {
+        try {
+            const now = Date.now();
+
+            // 1. Check memory cache
+            if (memoryCache && (now - memoryCache.builtAt) < CACHE_TTL_MS) {
+                logger.cacheHit(`Universe memory cache hit (age: ${Math.round((now - memoryCache.builtAt) / 1000)}s)`);
+                return memoryCache.stocks;
+            }
+
+            // 2. Check filesystem cache
+            if (fs.existsSync(CACHE_FILE)) {
+                try {
+                    const fileContent = fs.readFileSync(CACHE_FILE, "utf-8");
+                    const cache: UniverseCache = JSON.parse(fileContent);
+
+                    if ((now - cache.builtAt) < CACHE_TTL_MS && cache.version === UNIVERSE_VERSION) {
+                        logger.cacheHit(`Universe file cache hit (age: ${Math.round((now - cache.builtAt) / 1000)}s)`);
+                        memoryCache = cache;
+                        return cache.stocks;
+                    }
+                } catch (e) {
+                    logger.warn("DATA_FETCH", "Failed to read universe cache file");
+                }
+            }
+
+            const allStocks = [
+                ...SP500_CORE,
+                ...NASDAQ_GROWTH,
+                ...MID_CAP_GROWTH,
+                ...SMALL_CAP_GROWTH,
+                ...VALUE_DIVIDEND,
+            ];
+
+            // 3. Build Fresh Universe (requires API keys for dynamic build, else fallback to static)
+            const finnhubKey = process.env.FINNHUB_API_KEY;
+            const marketstackKey = process.env.MARKETSTACK_API_KEY;
+
+            if (!finnhubKey || !marketstackKey) {
+                logger.warn("FALLBACK", "Missing required API keys (FINNHUB or MARKETSTACK). Using static Failsafe Universe (Demo Mode).");
+
+                // Return static list as failsafe
+                return allStocks.reduce((acc, stock) => {
+                    if (!acc.find(s => s.symbol === stock.symbol)) {
+                        acc.push(stock);
+                    }
+                    return acc;
+                }, [] as UniverseStock[]);
+            }
+
+            logger.info("DATA_FETCH", "Building tracked universe...");
+
+            // Remove duplicates by symbol
+            const stocks = allStocks.reduce((acc, stock) => {
+                if (!acc.find(s => s.symbol === stock.symbol)) {
+                    acc.push(stock);
+                }
+                return acc;
+            }, [] as UniverseStock[]);
+
+            // 4. Save to cache
+            const newCache: UniverseCache = {
+                stocks,
+                builtAt: now,
+                version: UNIVERSE_VERSION
+            };
+
+            memoryCache = newCache;
+
+            try {
+                const cacheDir = path.dirname(CACHE_FILE);
+                if (!fs.existsSync(cacheDir)) fs.mkdirSync(cacheDir, { recursive: true });
+                fs.writeFileSync(CACHE_FILE, JSON.stringify(newCache), "utf-8");
+                logger.info("DATA_FETCH", `Universe persisted to ${CACHE_FILE}`);
+            } catch (e) {
+                logger.warn("DATA_FETCH", "Failed to persist universe cache to disk");
+            }
+
+            logger.dataFetch(`Tracked universe bootstrapped with ${stocks.length} stocks`, { categories: Object.keys(stocks) });
+            return stocks;
+        } catch (error) {
+            logger.error("DATA_FETCH", "Universe bootstrap failed", {
+                error: error instanceof Error ? error.message : String(error),
+            });
+            return [];
+        } finally {
+            bootstrapPromise = null;
         }
-        return acc;
-    }, [] as UniverseStock[]);
+    })();
 
-    logger.dataFetch(`Tracked universe contains ${uniqueStocks.length} stocks`, { categories: Object.keys(uniqueStocks) });
-    return uniqueStocks;
+    return bootstrapPromise;
+}
+
+/**
+ * Get the complete tracked universe (ensures bootstrap is complete).
+ */
+export async function getTrackedUniverse(): Promise<UniverseStock[]> {
+    return bootstrapUniverse();
+}
+
+/**
+ * Check if the current universe is in Demo Mode (built from static list).
+ */
+export function isUniverseDemoMode(): boolean {
+    const finnhubKey = process.env.FINNHUB_API_KEY;
+    const marketstackKey = process.env.MARKETSTACK_API_KEY;
+    return !finnhubKey || !marketstackKey;
 }
 
 /**
  * Get universe stocks by market cap category.
  */
-export function getUniverseByMarketCap(category: MarketCapCategory): UniverseStock[] {
-    return getTrackedUniverse().filter(s => s.marketCapCategory === category);
+export async function getUniverseByMarketCap(category: MarketCapCategory): Promise<UniverseStock[]> {
+    const universe = await getTrackedUniverse();
+    return universe.filter(s => s.marketCapCategory === category);
 }
 
 /**
  * Get universe stocks by index membership.
  */
-export function getUniverseByIndex(index: "SPY" | "QQQ"): UniverseStock[] {
-    return getTrackedUniverse().filter(s => s.indices.includes(index));
+export async function getUniverseByIndex(index: "SPY" | "QQQ"): Promise<UniverseStock[]> {
+    const universe = await getTrackedUniverse();
+    return universe.filter(s => s.indices.includes(index));
 }
 
 /**
  * Get a diversified sample of stocks for dashboard display.
  * Ensures market cap diversity.
  */
-export function getDashboardSample(count: number = 9): string[] {
-    const universe = getTrackedUniverse();
+export async function getDashboardSample(count: number = 9): Promise<string[]> {
+    const universe = await getTrackedUniverse();
 
     // Target distribution for diversity
     const megaCount = Math.ceil(count * 0.4);  // 40% mega cap
@@ -221,11 +325,11 @@ export function getDashboardSample(count: number = 9): string[] {
  * Get symbols for a diversified list view.
  * Applies market cap diversity rules.
  */
-export function getListViewSample(
+export async function getListViewSample(
     filter: "ready" | "watching" | "shape" | "force",
     maxCount: number = 15
-): string[] {
-    const universe = getTrackedUniverse();
+): Promise<string[]> {
+    const universe = await getTrackedUniverse();
 
     // For list views, we want broader coverage
     // Target: 2-3 mega, 3-4 large, 3-4 mid, 2-3 small
@@ -241,28 +345,30 @@ export function getListViewSample(
 /**
  * Look up market cap category for a symbol.
  */
-export function getMarketCapCategory(symbol: string): MarketCapCategory | null {
-    const stock = getTrackedUniverse().find(s => s.symbol === symbol);
+export async function getMarketCapCategory(symbol: string): Promise<MarketCapCategory | null> {
+    const universe = await getTrackedUniverse();
+    const stock = universe.find(s => s.symbol === symbol);
     return stock?.marketCapCategory ?? null;
 }
 
 /**
  * Look up company info for a symbol.
  */
-export function getUniverseStock(symbol: string): UniverseStock | null {
-    return getTrackedUniverse().find(s => s.symbol === symbol) ?? null;
+export async function getUniverseStock(symbol: string): Promise<UniverseStock | null> {
+    const universe = await getTrackedUniverse();
+    return universe.find(s => s.symbol === symbol) ?? null;
 }
 
 // ============================================================================
 // UNIVERSE STATS
 // ============================================================================
 
-export function getUniverseStats(): {
+export async function getUniverseStats(): Promise<{
     total: number;
     byMarketCap: Record<MarketCapCategory, number>;
     byIndex: Record<string, number>;
-} {
-    const universe = getTrackedUniverse();
+}> {
+    const universe = await getTrackedUniverse();
 
     return {
         total: universe.length,

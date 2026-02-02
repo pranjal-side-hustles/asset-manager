@@ -16,6 +16,10 @@ import {
   type EODData,
   type OHLCData,
 } from "../marketstack";
+import { fetchFinnhubSentiment } from "../finnhub/fetchSentiment";
+import { fetchFinnhubInstitutional } from "../finnhub/fetchInstitutional";
+import { fetchFinnhubOptions } from "../finnhub/fetchOptions";
+import { getMockSnapshot } from "../../aggregation/mockFallback";
 import { logger, providerGuard } from "../../../infra";
 
 export interface EODPrice {
@@ -56,6 +60,7 @@ export interface AggregatedMarketData {
     providersFailed: string[];
     timestamp: number;
     cached: boolean;
+    isDemoMode?: boolean;
   };
 }
 
@@ -84,14 +89,15 @@ export async function getEODPrice(symbol: string): Promise<EODPriceResult> {
     };
   }
 
-  const result = await fetchMarketstackEOD(upperSymbol);
+  const result = await providerGuard.withGuard("Marketstack", () => fetchMarketstackEOD(upperSymbol));
 
-  if (!result.success || !result.data) {
-    log.providerFailure(`Price unavailable for ${upperSymbol}: ${result.error}`);
+  if (!result || !result.success || !result.data) {
+    const errorMsg = result?.error || "Failed to fetch EOD price";
+    log.providerFailure(`Price unavailable for ${upperSymbol}: ${errorMsg}`);
     return {
       success: false,
       data: null,
-      error: result.error || "Failed to fetch EOD price",
+      error: errorMsg,
       cached: false,
     };
   }
@@ -238,9 +244,9 @@ export async function getMarketData(symbol: string): Promise<AggregatedMarketDat
   let eodDate = "";
   let dataCached = false;
 
-  const eodResult = await fetchMarketstackEOD(upperSymbol);
+  const eodResult = await providerGuard.withGuard("Marketstack", () => fetchMarketstackEOD(upperSymbol));
 
-  if (eodResult.success && eodResult.data) {
+  if (eodResult && eodResult.success && eodResult.data) {
     const { eod, ohlc } = eodResult.data;
 
     quote = {
@@ -277,100 +283,105 @@ export async function getMarketData(symbol: string): Promise<AggregatedMarketDat
       ohlcDays: ohlc.length,
     });
   } else {
-    log.providerFailure(`Price unavailable for ${upperSymbol}: ${eodResult.error}`);
+    priceSource = "Unavailable";
     providersFailed.push("Marketstack-EOD");
 
-    // Try Finnhub quote as a fallback for EOD/price data
-    const FINNHUB_API_KEY = process.env.FINNHUB_API_KEY;
-    let finnSuccess = false;
-
-    if (FINNHUB_API_KEY) {
-      const fhData = await providerGuard.withGuard("Finnhub", async () => {
-        const fhUrl = `https://finnhub.io/api/v1/quote?symbol=${upperSymbol}&token=${FINNHUB_API_KEY}`;
-        const fhResp = await rateLimitedFetch(fhUrl);
-        if (!fhResp.ok) throw new Error(`HTTP ${fhResp.status}`);
-        return fhResp.json();
-      });
-
-      if (fhData && typeof fhData.c === 'number' && fhData.c > 0) {
-        quote = {
-          symbol: upperSymbol,
-          price: fhData.c,
-          change: fhData.d ?? 0,
-          changePercent: fhData.dp ?? 0,
-          open: fhData.o ?? 0,
-          high: fhData.h ?? 0,
-          low: fhData.l ?? 0,
-          previousClose: fhData.pc ?? 0,
-          volume: 0,
-          timestamp: fhData.t ? fhData.t * 1000 : Date.now(),
-        };
-
-        ohlcCandles = [{
-          timestamp: fhData.t ? fhData.t * 1000 : Date.now(),
-          open: fhData.o ?? fhData.c,
-          high: fhData.h ?? fhData.c,
-          low: fhData.l ?? fhData.c,
-          close: fhData.c,
-          volume: 0,
-        }];
-
-        technicals = computeTechnicalsFromOHLC(ohlcCandles, quote.price);
-        priceSource = "Finnhub-Quote";
-        providersUsed.push("Finnhub-Quote");
-        finnSuccess = true;
-
-        log.dataFetch(`Fallback Finnhub quote for ${upperSymbol}: $${quote.price}`, { cached: false });
-      } else {
-        log.providerFailure(`Finnhub returned no usable quote for ${upperSymbol}`);
-      }
-    } else {
-      log.providerFailure("FINNHUB_API_KEY not configured for fallback");
-    }
-
-    if (!finnSuccess) {
-      quote = {
-        symbol: upperSymbol,
-        price: 0,
-        change: 0,
-        changePercent: 0,
-        open: 0,
-        high: 0,
-        low: 0,
-        previousClose: 0,
-        volume: 0,
-        timestamp: 0,
-      };
-
-      ohlcCandles = [];
-      technicals = {
-        rsi: 0,
-        sma20: 0,
-        sma50: 0,
-        sma200: 0,
-        ema20: 0,
-        ema50: 0,
-        atr: 0,
-        atrPercent: 0,
-      };
-
-      priceSource = "Unavailable";
-    }
+    log.providerFailure(`Price unavailable for ${upperSymbol} from Marketstack. EOD price is MANDATORY and Finnhub fallback is DISABLED for prices.`);
   }
 
   providersUsed.push("Local-Technicals");
 
-  const [fundamentalsResult, sentimentResult, optionsResult] = await Promise.all([
-    mockProvider.getFundamentals(upperSymbol),
-    mockProvider.getSentiment(upperSymbol),
-    mockProvider.getOptions(upperSymbol),
+  // Fetch true signals from Finnhub instead of mocks
+  const [sentimentData, institutionalData, optionsData] = await Promise.all([
+    fetchFinnhubSentiment(upperSymbol),
+    fetchFinnhubInstitutional(upperSymbol),
+    fetchFinnhubOptions(upperSymbol),
   ]);
 
-  providersUsed.push("Mock-Fundamentals", "Mock-Sentiment", "Mock-Options");
+  const fundamentals: FundamentalsData = {
+    revenueGrowthYoY: [], // Finnhub doesn't provide these easily in the free tier
+    epsGrowthYoY: [],
+    marketCap: institutionalData?.institutionalOwnership ? institutionalData.institutionalOwnership * 100 : 0, // Mocked cap if needed, but Marketstack usually provides it
+  };
 
-  const fundamentals = fundamentalsResult.data || { revenueGrowthYoY: [], epsGrowthYoY: [] };
-  const sentiment = sentimentResult.data || {};
-  const options = optionsResult.data || {};
+  const sentiment: SentimentData = {
+    analystRating: sentimentData?.analystRating?.toString(),
+    targetPrice: sentimentData?.analystPriceTarget,
+    insiderBuyRatio: sentimentData?.insiderBuying ? 0.8 : 0.2, // Simplified mapping
+    institutionalOwnership: institutionalData?.institutionalOwnership,
+  };
+
+  const options: OptionsData = {
+    putCallRatio: optionsData?.putCallRatio,
+    totalCallOI: optionsData?.callOpenInterest,
+    totalPutOI: optionsData?.putOpenInterest,
+  };
+
+  if (sentimentData) providersUsed.push("Finnhub-Sentiment");
+  if (institutionalData) providersUsed.push("Finnhub-Institutional");
+  if (optionsData) providersUsed.push("Finnhub-Options");
+
+  // DEMO MODE FAILSAFE: If price is missing, return mock data to avoid blank states
+  if (priceSource === "Unavailable") {
+    const mockSnapshot = getMockSnapshot(upperSymbol);
+    if (mockSnapshot) {
+      log.warn("FALLBACK", `Entering Demo Mode for ${upperSymbol} due to provider failure`);
+      return {
+        quote: {
+          symbol: upperSymbol,
+          price: mockSnapshot.price,
+          change: mockSnapshot.change,
+          changePercent: mockSnapshot.changePercent,
+          open: mockSnapshot.price - mockSnapshot.change,
+          high: mockSnapshot.price * 1.01,
+          low: mockSnapshot.price * 0.99,
+          previousClose: mockSnapshot.price - mockSnapshot.change,
+          volume: mockSnapshot.volume,
+          timestamp: Date.now(),
+        },
+        ohlc: [],
+        technicals: {
+          rsi: mockSnapshot.technicals.rsi,
+          sma20: mockSnapshot.technicals.movingAverages.ma20,
+          sma50: mockSnapshot.technicals.movingAverages.ma50,
+          sma200: mockSnapshot.technicals.movingAverages.ma200,
+          ema20: mockSnapshot.technicals.movingAverages.ma20,
+          ema50: mockSnapshot.technicals.movingAverages.ma50,
+          atr: mockSnapshot.technicals.atr,
+          atrPercent: mockSnapshot.technicals.atrPercent,
+        },
+        fundamentals: {
+          revenueGrowthYoY: mockSnapshot.fundamentals.revenueGrowthYoY,
+          epsGrowthYoY: mockSnapshot.fundamentals.epsGrowthYoY,
+          marketCap: mockSnapshot.marketCap,
+        },
+        sentiment: {
+          analystRating: mockSnapshot.sentiment.analystRating?.toString(),
+          targetPrice: mockSnapshot.sentiment.analystPriceTarget,
+          insiderBuyRatio: mockSnapshot.sentiment.insiderBuying ? 0.7 : 0.3,
+          institutionalOwnership: mockSnapshot.sentiment.institutionalOwnership,
+        },
+        options: {
+          putCallRatio: mockSnapshot.sentiment.putCallRatio,
+          totalCallOI: 1000000,
+          totalPutOI: 800000,
+        },
+        priceStatus: {
+          source: "Demo-Mode",
+          isEOD: true,
+          eodDate: new Date().toISOString().split("T")[0],
+          timestamp: Date.now(),
+        },
+        meta: {
+          providersUsed: ["Mock-Fallback"],
+          providersFailed,
+          timestamp: Date.now(),
+          cached: false,
+          isDemoMode: true,
+        },
+      };
+    }
+  }
 
   return {
     quote,

@@ -8,12 +8,12 @@ export interface TTLPolicy {
 }
 
 export const DEFAULT_TTL_POLICY: TTLPolicy = {
-  price: 60 * 1000,
-  technicals: 5 * 60 * 1000,
-  financials: 6 * 60 * 60 * 1000,
-  sentiment: 15 * 60 * 1000,
-  options: 5 * 60 * 1000,
-  snapshot: 2 * 60 * 1000,
+  price: 24 * 60 * 60 * 1000,
+  technicals: 24 * 60 * 60 * 1000,
+  financials: 24 * 60 * 60 * 1000,
+  sentiment: 24 * 60 * 60 * 1000,
+  options: 24 * 60 * 60 * 1000,
+  snapshot: 24 * 60 * 60 * 1000,
 };
 
 export type DataType = "price" | "technicals" | "financials" | "sentiment" | "options";

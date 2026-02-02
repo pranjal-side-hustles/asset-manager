@@ -65,5 +65,6 @@ export interface MarketContextSnapshot {
     providersFailed: string[];
     warnings: string[];
     cacheHit: boolean;
+    isDemoMode?: boolean;
   };
 }
