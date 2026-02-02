@@ -438,5 +438,9 @@ export async function fetchDashboardStocks(): Promise<DashboardStock[]> {
     };
   });
 
-  return dashboardStocks;
+  // Apply dashboard rotation to select 6 curated stocks
+  const { selectDashboardStocks } = await import("./dashboardRotation");
+  const curatedStocks = selectDashboardStocks(dashboardStocks, marketContext.regime);
+
+  return curatedStocks;
 }
