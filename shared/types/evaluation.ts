@@ -1,5 +1,5 @@
 import type { StrategicGrowthEvaluation, TacticalSentinelEvaluation, StrategicGrowthStatus, TacticalSentinelStatus, StrategicLabels, TacticalLabels } from "./horizon";
-import type { Stock, StockQuote, DataConfidence } from "./stock";
+import type { Stock, StockQuote, DataConfidence, IntradayPrice } from "./stock";
 
 export type MarketCapCategory = "megaCap" | "largeCap" | "midCap" | "smallCap";
 
@@ -30,6 +30,7 @@ export interface StockEvaluationResponse {
   marketRegime?: "RISK_ON" | "RISK_OFF" | "NEUTRAL";
   marketContext?: MarketContextInfo;
   isDemoMode?: boolean;
+  priceLabel?: string;
   decisionLabel?: {
     displayText: string;
     explanation: string;
@@ -43,6 +44,9 @@ export interface DashboardStock {
   price: number;
   change: number;
   changePercent: number;
+  industry?: string; // Added based on the provided diff
+  priceLabel?: string;
+  intraday?: IntradayPrice;
   eodDate?: string;
   priceAvailable: boolean;
   strategicScore: number;

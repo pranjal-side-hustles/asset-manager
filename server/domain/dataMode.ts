@@ -4,14 +4,14 @@ export type DataMode = "LIVE" | "DEMO";
 
 /**
  * Checks for the presence of required API keys to determine the operational mode.
- * LIVE: At least one primary provider (Marketstack or Finnhub) is configured.
- * DEMO: No primary providers are configured.
+ * LIVE: Marketstack (price provider) is configured. Finnhub is optional for sentiment/options.
+ * DEMO: Marketstack is not configured.
  */
 export function getDataMode(): DataMode {
     const marketstackKey = process.env.MARKETSTACK_API_KEY;
-    const finnhubKey = process.env.FINNHUB_API_KEY;
 
-    if (marketstackKey || finnhubKey) {
+    // STRICT: LIVE mode requires Marketstack (the authoritative price source)
+    if (marketstackKey) {
         return "LIVE";
     }
 
@@ -37,8 +37,8 @@ export function logDataMode(): void {
     const mask = (key?: string) => key ? `${key.substring(0, 4)}...${key.substring(key.length - 4)}` : "MISSING";
 
     if (mode === "LIVE") {
-        logger.info("DATA_FETCH", `Application running in LIVE mode (Marketstack: ${mask(marketstackKey)}, Finnhub: ${mask(finnhubKey)})`);
+        logger.info("DATA_FETCH", `Application running in LIVE mode (Marketstack: ${mask(marketstackKey)} [REQUIRED], Finnhub: ${mask(finnhubKey)} [optional for sentiment/options])`);
     } else {
-        logger.warn("DATA_FETCH", "Application running in DEMO mode - No API keys configured or found in environment.");
+        logger.warn("DATA_FETCH", "Application running in DEMO mode - Marketstack API key not configured.");
     }
 }

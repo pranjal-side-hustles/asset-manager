@@ -8,6 +8,8 @@ export interface Stock {
   marketCap: number;
   sector: string;
   industry: string;
+  priceLabel?: string;
+  intraday?: IntradayPrice;
 }
 
 export interface StockQuote {
@@ -92,6 +94,7 @@ export interface StockSnapshotMeta {
   dataFreshness: Date;
   eodDate?: string;
   priceAvailable: boolean;
+  priceLabel?: string; // e.g., "Last Market Close"
   providersUsed: string[];
   providersFailed: string[];
   confidence: DataConfidence;
@@ -103,13 +106,16 @@ export interface StockSnapshotMeta {
 export interface StockSnapshot {
   symbol: string;
   companyName: string;
-  price: number;
+  price: number; // The Authority Price (usually EOD)
   change: number;
   changePercent: number;
   volume: number;
   marketCap?: number;
   sector?: string;
   industry?: string;
+
+  /** Optional tiered pricing for Detail/Search contexts */
+  intraday?: IntradayPrice;
 
   fundamentals: StockFundamentals;
   technicals: StockTechnicals;
@@ -118,6 +124,26 @@ export interface StockSnapshot {
   historicalPrices: HistoricalPrice[];
 
   meta: StockSnapshotMeta;
+}
+
+/**
+ * PRICE AUTHORITY MODEL
+ * 
+ * Rules for sourcing and displaying prices across the application.
+ */
+
+export enum PriceContext {
+  DASHBOARD = "DASHBOARD",
+  STOCK_DETAIL = "STOCK_DETAIL",
+  SEARCH = "SEARCH"
+}
+
+export interface IntradayPrice {
+  readonly price: number;
+  readonly change: number;
+  readonly changePercent: number;
+  readonly timestamp: number;
+  readonly label: string; // "Latest estimate" or "Intraday (estimate)"
 }
 
 export interface PartialStockData {

@@ -7,12 +7,13 @@ import type {
   HistoricalPrice,
   DataConfidence
 } from "@shared/types";
+import { PriceContext } from "@shared/types";
 
 import { getMarketData } from "../providers/adapter";
 import { stockCache, CACHE_TTL } from "./cache";
 import { logger } from "../../infra";
 import { isDemoMode } from "../../domain/dataMode";
-import { getMockSnapshot } from "./mockFallback";
+import { getMockSnapshot, getBenchmarkPrice } from "./mockFallback";
 import { evaluateConfidence, type ConfidenceResult } from "../../domain/confidence/confidenceEvaluator";
 
 const SYMBOL_COMPANY_MAP: Record<string, { name: string; sector: string; industry: string }> = {
@@ -79,9 +80,12 @@ function determineTrend(prices: Array<{ close: number }>): "UP" | "DOWN" | "SIDE
   return "SIDEWAYS";
 }
 
-export async function getStockSnapshot(symbol: string): Promise<StockSnapshot | null> {
+export async function getStockSnapshot(
+  symbol: string,
+  context: PriceContext = PriceContext.DASHBOARD
+): Promise<StockSnapshot | null> {
   const upperSymbol = symbol.toUpperCase();
-  const cacheKey = `snapshot:${upperSymbol}`;
+  const cacheKey = `snapshot:${upperSymbol}:${context}`;
   const cached = stockCache.get<StockSnapshot>(cacheKey);
 
   const log = logger.withContext({ symbol: upperSymbol });
@@ -100,58 +104,15 @@ export async function getStockSnapshot(symbol: string): Promise<StockSnapshot | 
     }
 
     // Fallback: Generate a generic mock snapshot for Demo Mode so no symbol returns null or fails
-    log.info("DATA_FETCH", `Generating generic mock snapshot for ${upperSymbol} (Demo Mode)`);
-    const genericMock: StockSnapshot = {
-      symbol: upperSymbol,
-      companyName: `${upperSymbol} Inc. (Demo)`,
-      price: 150.00 + (Math.random() * 50),
-      change: (Math.random() * 4) - 2,
-      changePercent: (Math.random() * 4) - 2,
-      volume: 1000000 + Math.floor(Math.random() * 5000000),
-      marketCap: 50000000000 + (Math.random() * 100000000000),
-      sector: "Technology",
-      industry: "Various",
-      fundamentals: {
-        revenueGrowthYoY: [5.2, 7.4, 6.1],
-        epsGrowthYoY: [10.5, 12.2, 8.8],
-      },
-      technicals: {
-        atr: 3.5,
-        atrPercent: 2.1,
-        rsi: 55,
-        movingAverages: { ma20: 145, ma50: 140, ma200: 130 },
-        priceVsMA50: 5.2,
-        priceVsMA200: 12.5,
-        weeklyTrend: "UP",
-        dailyTrend: "UP",
-      },
-      sentiment: {
-        analystRating: 4.0,
-        insiderBuying: true,
-        putCallRatio: 0.85,
-      },
-      options: {
-      },
-      historicalPrices: [],
-      meta: {
-        dataFreshness: new Date(),
-        priceAvailable: true,
-        providersUsed: ["Mock-Generic"],
-        providersFailed: [],
-        confidence: "MEDIUM",
-        confidenceScore: 70,
-        confidenceReasons: ["Generic mock data generated for demo mode"],
-        warnings: ["Using representative data (Demo Mode)"],
-      },
-    };
+    const genericMock = generateGenericMock(upperSymbol);
     stockCache.set(cacheKey, genericMock, CACHE_TTL.SNAPSHOT);
     return genericMock;
   }
 
-  log.cacheMiss("Fetching fresh data via provider adapter");
+  log.cacheMiss(`Fetching fresh data via provider adapter (Context: ${context})`);
 
   try {
-    const marketData = await getMarketData(upperSymbol);
+    const marketData = await getMarketData(upperSymbol, context);
     const { quote, ohlc, technicals, fundamentals, sentiment, options, meta } = marketData;
 
     const companyInfo = SYMBOL_COMPANY_MAP[upperSymbol] || {
@@ -221,6 +182,61 @@ export async function getStockSnapshot(symbol: string): Promise<StockSnapshot | 
     };
 
     const priceAvailable = quote.price > 0 && marketData.priceStatus.source !== "Unavailable";
+    const benchmark = getBenchmarkPrice(upperSymbol);
+
+    // Sanity check: If the provider returns a price that is > 20% away from benchmark, it's likely bad data
+    if (priceAvailable && benchmark && (Math.abs(quote.price - benchmark) / benchmark > 0.20)) {
+      log.warn("DATA_FETCH", `Provider returned suspicious price for ${upperSymbol}: $${quote.price} (Benchmark: $${benchmark}). Falling back to mock.`);
+      // STRICT MODE: Only fallback to mock if in DEMO mode
+      if (isDemoMode()) {
+        return getMockSnapshot(upperSymbol) || generateGenericMock(upperSymbol);
+      }
+      // In LIVE mode, continue with the suspicious price but log a warning
+      log.warn("DATA_FETCH", `Continuing with suspicious price in LIVE mode for ${upperSymbol}`);
+    }
+
+    if (!priceAvailable || quote.price <= 0) {
+      log.warn("DATA_FETCH", `Provider returned invalid price for ${upperSymbol}. Price unavailable.`);
+      // STRICT MODE: Only fallback to mock if in DEMO mode
+      if (isDemoMode()) {
+        return getMockSnapshot(upperSymbol) || generateGenericMock(upperSymbol);
+      }
+      // In LIVE mode, return a snapshot with priceAvailable: false instead of fabricating data
+      const companyInfo = SYMBOL_COMPANY_MAP[upperSymbol] || {
+        name: `${upperSymbol} Inc.`,
+        sector: "Unknown",
+        industry: "Unknown",
+      };
+
+      return {
+        symbol: upperSymbol,
+        companyName: companyInfo.name,
+        price: 0,
+        change: 0,
+        changePercent: 0,
+        volume: 0,
+        marketCap: 0,
+        sector: companyInfo.sector,
+        industry: companyInfo.industry,
+        fundamentals: DEFAULT_FUNDAMENTALS,
+        technicals: DEFAULT_TECHNICALS,
+        sentiment: DEFAULT_SENTIMENT,
+        options: DEFAULT_OPTIONS,
+        historicalPrices: [],
+        meta: {
+          dataFreshness: new Date(),
+          eodDate: marketData.priceStatus.eodDate || undefined,
+          priceAvailable: false,
+          priceLabel: "Price unavailable (EOD)",
+          providersUsed: meta.providersUsed,
+          providersFailed: meta.providersFailed,
+          confidence: "LOW",
+          confidenceScore: 0,
+          confidenceReasons: ["Price unavailable in LIVE mode - no fallback"],
+          warnings: ["Price unavailable (EOD)"],
+        },
+      };
+    }
 
     const confidenceResult = determineConfidence(meta.providersUsed, meta.providersFailed, {
       priceDataAvailable: priceAvailable,
@@ -240,6 +256,8 @@ export async function getStockSnapshot(symbol: string): Promise<StockSnapshot | 
       marketCap: fundamentals.marketCap || 0,
       sector: companyInfo.sector,
       industry: companyInfo.industry,
+
+      intraday: marketData.intraday,
 
       fundamentals: {
         ...DEFAULT_FUNDAMENTALS,
@@ -267,6 +285,7 @@ export async function getStockSnapshot(symbol: string): Promise<StockSnapshot | 
         dataFreshness: new Date(),
         eodDate: marketData.priceStatus.eodDate || undefined,
         priceAvailable,
+        priceLabel: marketData.priceStatus.label,
         providersUsed: meta.providersUsed,
         providersFailed: meta.providersFailed,
         confidence: confidenceResult.level,
@@ -287,26 +306,32 @@ export async function getStockSnapshot(symbol: string): Promise<StockSnapshot | 
   } catch (error) {
     log.error("PROVIDER_FAILURE", `Failed to fetch stock data: ${error}`);
 
-    const companyInfo = SYMBOL_COMPANY_MAP[upperSymbol] || {
-      name: `${upperSymbol} Inc.`,
-      sector: "Unknown",
-      industry: "Unknown",
-    };
+    // STRICT MODE: Only fallback to mock data if we are in DEMO mode.
+    // In LIVE mode, we must return a sanitised error state to avoid fabricated prices.
+    if (isDemoMode()) {
+      return getMockSnapshot(upperSymbol) || generateGenericMock(upperSymbol);
+    }
 
-    const fallbackSnapshot: StockSnapshot = {
+    // Live Mode Emergency Fallback (No fake prices)
+    return {
       symbol: upperSymbol,
-      companyName: companyInfo.name,
-      price: 100,
+      companyName: upperSymbol,
+      price: 0,
       change: 0,
       changePercent: 0,
       volume: 0,
       marketCap: 0,
-      sector: companyInfo.sector,
-      industry: companyInfo.industry,
-      fundamentals: DEFAULT_FUNDAMENTALS,
-      technicals: DEFAULT_TECHNICALS,
-      sentiment: DEFAULT_SENTIMENT,
-      options: DEFAULT_OPTIONS,
+      sector: "Unknown",
+      industry: "Unknown",
+      fundamentals: { revenueGrowthYoY: [], epsGrowthYoY: [] },
+      technicals: {
+        atr: 0, atrPercent: 0, rsi: 0,
+        movingAverages: { ma20: 0, ma50: 0, ma200: 0 },
+        priceVsMA50: 0, priceVsMA200: 0,
+        weeklyTrend: "SIDEWAYS", dailyTrend: "SIDEWAYS"
+      },
+      sentiment: { analystRating: 3 }, // Hold
+      options: {},
       historicalPrices: [],
       meta: {
         dataFreshness: new Date(),
@@ -315,12 +340,58 @@ export async function getStockSnapshot(symbol: string): Promise<StockSnapshot | 
         providersFailed: ["All-Providers"],
         confidence: "LOW",
         confidenceScore: 0,
-        confidenceReasons: ["Emergency fallback - all providers failed"],
-        warnings: ["Using emergency fallback data"],
+        confidenceReasons: ["Strict Mode: Provider failed in Live Mode"],
+        warnings: ["Price Unavailable (Provider Failure)"],
       },
     };
-
-    stockCache.set(cacheKey, fallbackSnapshot, 30);
-    return fallbackSnapshot;
   }
+}
+
+function generateGenericMock(symbol: string): StockSnapshot {
+  const upperSymbol = symbol.toUpperCase();
+  const benchmark = getBenchmarkPrice(upperSymbol);
+  const s = upperSymbol.split('').reduce((a, b) => a + b.charCodeAt(0), 0);
+
+  // Use benchmark if available, otherwise generate stable pseudorandom
+  const basePrice = benchmark || (100 + (s % 400));
+  const change = (s % 10) - 5;
+
+  return {
+    symbol: upperSymbol,
+    companyName: `${upperSymbol} Inc. (Syncing)`,
+    price: basePrice,
+    change: change,
+    changePercent: (change / basePrice) * 100,
+    volume: 1000000 + (s * 1000),
+    marketCap: 1000000000 + (s * 10000000),
+    sector: "Technology",
+    industry: "Various",
+    fundamentals: {
+      revenueGrowthYoY: [15, 18, 16], // High growth to hit buckets
+      epsGrowthYoY: [20, 22, 19],
+    },
+    technicals: {
+      atr: basePrice * 0.02,
+      atrPercent: 2,
+      rsi: 65, // Stronger RSI
+      movingAverages: { ma20: basePrice * 0.98, ma50: basePrice * 0.95, ma200: basePrice * 0.90 },
+      priceVsMA50: 5,
+      priceVsMA200: 10,
+      weeklyTrend: "UP",
+      dailyTrend: "UP",
+    },
+    sentiment: { analystRating: 4 },
+    options: {},
+    historicalPrices: [],
+    meta: {
+      dataFreshness: new Date(),
+      priceAvailable: true,
+      providersUsed: ["Mock-Failsafe"],
+      providersFailed: [],
+      confidence: "MEDIUM",
+      confidenceScore: 60,
+      confidenceReasons: ["Failsafe mock data generated"],
+      warnings: ["Synchronizing data (Demo Mode)"],
+    },
+  };
 }

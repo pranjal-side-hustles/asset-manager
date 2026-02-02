@@ -82,35 +82,56 @@ export function StockCard({ stock }: StockCardProps) {
               </p>
             </div>
             <div className="text-right">
-              <div className="text-base font-semibold text-foreground/70">
-                ${stock.price.toLocaleString("en-US", { minimumFractionDigits: 2 })}
-              </div>
-              <div className={cn(
-                "text-[10px] font-medium",
-                stock.changePercent >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"
-              )}>
-                {stock.changePercent >= 0 ? "+" : ""}{stock.changePercent.toFixed(2)}%
-              </div>
+              {stock.priceAvailable && stock.price > 0 ? (
+                <>
+                  <div className="text-base font-semibold text-foreground/70">
+                    ${stock.price.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                  </div>
+                  <div className="text-[9px] text-muted-foreground/60 leading-tight">
+                    {stock.priceLabel || "Last Market Close"}
+                  </div>
+                  <div className={cn(
+                    "text-[10px] font-medium mt-0.5",
+                    stock.changePercent >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"
+                  )}>
+                    {stock.changePercent >= 0 ? "+" : ""}{stock.changePercent.toFixed(2)}%
+                  </div>
+                </>
+              ) : (
+                <div className="text-xs font-medium text-muted-foreground italic mt-2">
+                  Price unavailable (EOD)
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Row 1: SHAPE and FORCE Scores (Equal Weight) */}
+          {/* Row 1: SHAPE and FORCE Scores (Circular) */}
           <div className="grid grid-cols-2 gap-3">
             {/* SHAPE Score */}
-            <div className={cn("p-3 rounded-lg text-center", shapeColor.bg)}>
-              <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold mb-1">SHAPE</div>
-              <div className={cn("text-2xl font-bold", shapeColor.text)}>{stock.strategicScore}</div>
-              <div className="text-[9px] text-muted-foreground/70 mt-0.5">
-                {stock.strategicScore >= 70 ? "Strong" : stock.strategicScore >= 50 ? "Neutral" : "Weak"}
+            <div className="flex justify-center">
+              <div className={cn(
+                "w-24 h-24 rounded-full flex flex-col items-center justify-center",
+                shapeColor.bg
+              )}>
+                <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold mb-0.5">SHAPE</div>
+                <div className={cn("text-2xl font-bold", shapeColor.text)}>{stock.strategicScore}</div>
+                <div className="text-[9px] text-muted-foreground/70 mt-0.5">
+                  {stock.strategicScore >= 70 ? "Strong" : stock.strategicScore >= 50 ? "Neutral" : "Weak"}
+                </div>
               </div>
             </div>
 
             {/* FORCE Score */}
-            <div className={cn("p-3 rounded-lg text-center", forceColor.bg)}>
-              <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold mb-1">FORCE</div>
-              <div className={cn("text-2xl font-bold", forceColor.text)}>{stock.tacticalScore}</div>
-              <div className="text-[9px] text-muted-foreground/70 mt-0.5">
-                {stock.tacticalScore >= 70 ? "Strong" : stock.tacticalScore >= 50 ? "Neutral" : "Weak"}
+            <div className="flex justify-center">
+              <div className={cn(
+                "w-24 h-24 rounded-full flex flex-col items-center justify-center",
+                forceColor.bg
+              )}>
+                <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold mb-0.5">FORCE</div>
+                <div className={cn("text-2xl font-bold", forceColor.text)}>{stock.tacticalScore}</div>
+                <div className="text-[9px] text-muted-foreground/70 mt-0.5">
+                  {stock.tacticalScore >= 70 ? "Strong" : stock.tacticalScore >= 50 ? "Neutral" : "Weak"}
+                </div>
               </div>
             </div>
           </div>

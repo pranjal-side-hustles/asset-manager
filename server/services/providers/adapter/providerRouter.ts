@@ -22,6 +22,9 @@ import { fetchFinnhubOptions } from "../finnhub/fetchOptions";
 import { getMockSnapshot } from "../../aggregation/mockFallback";
 import { logger, providerGuard } from "../../../infra";
 import { isDemoMode } from "../../../domain/dataMode";
+import { PriceContext } from "@shared/types";
+import { fetchFinnhubQuote } from "../finnhub";
+import { getAuthorityRules } from "../../../domain/price/priceAuthority";
 
 export interface EODPrice {
   symbol: string;
@@ -50,11 +53,19 @@ export interface AggregatedMarketData {
   fundamentals: FundamentalsData;
   sentiment: SentimentData;
   options: OptionsData;
+  intraday?: {
+    price: number;
+    change: number;
+    changePercent: number;
+    timestamp: number;
+    label: string;
+  };
   priceStatus: {
     source: string;
     isEOD: boolean;
     eodDate: string;
     timestamp: number;
+    label: string; // "Last Market Close" etc
   };
   meta: {
     providersUsed: string[];
@@ -62,6 +73,7 @@ export interface AggregatedMarketData {
     timestamp: number;
     cached: boolean;
     isDemoMode?: boolean;
+    context: PriceContext;
   };
 }
 
@@ -216,11 +228,15 @@ function computeTechnicalsFromOHLC(ohlc: (OHLCData | OHLCCandle)[], currentPrice
   };
 }
 
-export async function getMarketData(symbol: string): Promise<AggregatedMarketData> {
+export async function getMarketData(
+  symbol: string,
+  context: PriceContext = PriceContext.DASHBOARD
+): Promise<AggregatedMarketData> {
   const upperSymbol = symbol.toUpperCase();
   const providersUsed: string[] = [];
   const providersFailed: string[] = [];
-  const log = logger.withContext({ symbol: upperSymbol });
+  const log = logger.withContext({ symbol: upperSymbol }); // Removed context from log to avoid lint
+  const rules = getAuthorityRules(context);
 
   let quote: PriceQuote = {
     symbol: upperSymbol,
@@ -248,50 +264,86 @@ export async function getMarketData(symbol: string): Promise<AggregatedMarketDat
   let priceSource = "Unavailable";
   let eodDate = "";
   let dataCached = false;
+  let intradayData: AggregatedMarketData["intraday"] | undefined;
 
-  const eodResult = await providerGuard.withGuard("Marketstack", () => fetchMarketstackEOD(upperSymbol));
+  // 1. Fetch EOD Data if required by rules
+  if (rules.useMarketstackEOD) {
+    const eodResult = await providerGuard.withGuard("Marketstack", () => fetchMarketstackEOD(upperSymbol));
 
-  if (eodResult && eodResult.success && eodResult.data) {
-    const { eod, ohlc } = eodResult.data;
+    if (eodResult && eodResult.success && eodResult.data) {
+      const { eod, ohlc } = eodResult.data;
 
-    quote = {
-      symbol: eod.symbol,
-      price: eod.close,
-      change: eod.change,
-      changePercent: eod.changePercent,
-      open: eod.open,
-      high: eod.high,
-      low: eod.low,
-      previousClose: ohlc[1]?.close || eod.close,
-      volume: eod.volume,
-      timestamp: new Date(eod.date).getTime(),
-    };
+      quote = {
+        symbol: eod.symbol,
+        price: eod.close,
+        change: eod.change,
+        changePercent: eod.changePercent,
+        open: eod.open,
+        high: eod.high,
+        low: eod.low,
+        previousClose: ohlc[1]?.close || eod.close,
+        volume: eod.volume,
+        timestamp: new Date(eod.date).getTime(),
+      };
 
-    ohlcCandles = ohlc.map(d => ({
-      timestamp: new Date(d.date).getTime(),
-      open: d.open,
-      high: d.high,
-      low: d.low,
-      close: d.close,
-      volume: d.volume,
-    }));
+      ohlcCandles = ohlc.map(d => ({
+        timestamp: new Date(d.date).getTime(),
+        open: d.open,
+        high: d.high,
+        low: d.low,
+        close: d.close,
+        volume: d.volume,
+      }));
 
-    technicals = computeTechnicalsFromOHLC(ohlc, eod.close);
+      technicals = computeTechnicalsFromOHLC(ohlc, eod.close);
 
-    priceSource = "Marketstack";
-    eodDate = eod.date;
-    dataCached = eodResult.cached;
-    providersUsed.push("Marketstack-EOD");
+      priceSource = "Marketstack";
+      eodDate = eod.date;
+      dataCached = eodResult.cached;
+      providersUsed.push("Marketstack-EOD");
 
-    log.dataFetch(`Market data for ${upperSymbol}: EOD $${eod.close} (${eod.date})`, {
-      cached: dataCached,
-      ohlcDays: ohlc.length,
-    });
-  } else {
-    priceSource = "Unavailable";
-    providersFailed.push("Marketstack-EOD");
+      log.dataFetch(`Market data for ${upperSymbol}: EOD $${eod.close} (${eod.date})`, {
+        cached: dataCached,
+        ohlcDays: ohlc.length,
+      });
+    } else {
+      providersFailed.push("Marketstack-EOD");
+      log.providerFailure(`Price unavailable for ${upperSymbol} from Marketstack.`);
+    }
+  }
 
-    log.providerFailure(`Price unavailable for ${upperSymbol} from Marketstack. EOD price is MANDATORY and Finnhub fallback is DISABLED for prices.`);
+  // 2. Fetch Intraday if required by rules
+  if (rules.useFinnhubIntraday) {
+    const fhQuote = await providerGuard.withGuard("Finnhub", () => fetchFinnhubQuote(upperSymbol));
+    if (fhQuote) {
+      providersUsed.push("Finnhub-Intraday");
+      intradayData = {
+        price: fhQuote.c,
+        change: fhQuote.d,
+        changePercent: fhQuote.dp,
+        timestamp: fhQuote.t * 1000,
+        label: rules.intradayLabel || "Intraday (estimate)",
+      };
+
+      // In SEARCH context, Finnhub provides the primary quote
+      if (context === PriceContext.SEARCH) {
+        quote = {
+          symbol: upperSymbol,
+          price: fhQuote.c,
+          change: fhQuote.d,
+          changePercent: fhQuote.dp,
+          open: fhQuote.o,
+          high: fhQuote.h,
+          low: fhQuote.l,
+          previousClose: fhQuote.pc,
+          volume: 0, // Finnhub quote doesn't have volume
+          timestamp: fhQuote.t * 1000,
+        };
+        priceSource = "Finnhub";
+      }
+    } else {
+      providersFailed.push("Finnhub-Intraday");
+    }
   }
 
   providersUsed.push("Local-Technicals");
@@ -326,8 +378,9 @@ export async function getMarketData(symbol: string): Promise<AggregatedMarketDat
   if (institutionalData) providersUsed.push("Finnhub-Institutional");
   if (optionsData) providersUsed.push("Finnhub-Options");
 
-  // DEMO MODE FAILSAFE: If price is missing, return mock data to avoid blank states
-  if (priceSource === "Unavailable") {
+  // DEMO MODE FAILSAFE: If price is missing, return mock data ONLY if we are in DEMO mode.
+  // In LIVE mode, we must return "Unavailable" to avoid contaminating data with fake numbers.
+  if (priceSource === "Unavailable" && isDemoMode()) {
     const mockSnapshot = getMockSnapshot(upperSymbol);
     if (mockSnapshot) {
       log.warn("FALLBACK", `Entering Demo Mode for ${upperSymbol} due to provider failure`);
@@ -376,6 +429,7 @@ export async function getMarketData(symbol: string): Promise<AggregatedMarketDat
           isEOD: true,
           eodDate: new Date().toISOString().split("T")[0],
           timestamp: Date.now(),
+          label: rules.primaryPriceLabel,
         },
         meta: {
           providersUsed: ["Mock-Fallback"],
@@ -383,9 +437,12 @@ export async function getMarketData(symbol: string): Promise<AggregatedMarketDat
           timestamp: Date.now(),
           cached: false,
           isDemoMode: true,
+          context,
         },
       };
     }
+  } else if (priceSource === "Unavailable") {
+    log.warn("DATA_FETCH", `Price unavailable for ${upperSymbol} in LIVE mode. Returning available auxiliary data without price.`);
   }
 
   return {
@@ -395,17 +452,20 @@ export async function getMarketData(symbol: string): Promise<AggregatedMarketDat
     fundamentals,
     sentiment,
     options,
+    intraday: intradayData,
     priceStatus: {
       source: priceSource,
-      isEOD: true,
+      isEOD: priceSource === "Marketstack",
       eodDate,
       timestamp: Date.now(),
+      label: rules.primaryPriceLabel,
     },
     meta: {
       providersUsed,
       providersFailed,
       timestamp: Date.now(),
       cached: dataCached,
+      context,
     },
   };
 }

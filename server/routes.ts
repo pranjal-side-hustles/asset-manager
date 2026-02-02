@@ -8,6 +8,9 @@ import { getMarketContext, getDefaultMarketContextSnapshot } from "./domain/mark
 import { evaluatePhase3ForSymbol } from "./domain/phase3";
 import { evaluatePhase4ForSymbol } from "./domain/phase4";
 import { isUniverseDemoMode } from "./services/stocks/stockUniverse";
+import { getDataMode } from "./domain/dataMode";
+import { stockCache } from "./services/aggregation/cache";
+import { clearCache as clearMarketstackCache } from "./services/providers/marketstack/marketstackEODProvider";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -62,8 +65,10 @@ export async function registerRoutes(
       console.error("Dashboard critical failure:", error);
       const fallbackContext = await getMarketContext();
 
-      // EMERGENCY FALLBACK: Populate stocks so dashboard is never empty
+      // EMERGENCY FALLBACK: Respect mode boundaries
       let fallbackStocks: any[] = [];
+      const mode = getDataMode();
+
       try {
         const { getDashboardSample } = await import("./services/stocks/stockUniverse");
         const { getStockSnapshot } = await import("./services/aggregation/getStockSnapshot");
@@ -76,7 +81,7 @@ export async function registerRoutes(
           price: snap!.price,
           change: snap!.change,
           changePercent: snap!.changePercent,
-          priceAvailable: true,
+          priceAvailable: snap!.meta.priceAvailable,
           strategicScore: snap!.symbol === "AAPL" || snap!.symbol === "NVDA" ? 72 : 64,
           tacticalScore: snap!.symbol === "AAPL" || snap!.symbol === "NVDA" ? 78 : 58,
           strategicStatus: "HEALTHY",
@@ -94,7 +99,7 @@ export async function registerRoutes(
       res.json({
         stocks: fallbackStocks,
         lastUpdated: Date.now(),
-        isDemoMode: true, // Keep this for fallback
+        isDemoMode: mode === "DEMO",
         marketRegime: fallbackContext.context.regime,
         marketContext: deriveMarketContextInfo(fallbackContext.context),
         marketConfidence: fallbackContext.context.confidence,
@@ -410,6 +415,17 @@ export async function registerRoutes(
       res.json({ logs });
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch logs" });
+    }
+  });
+
+  app.post("/api/infra/clear-cache", async (req, res) => {
+    try {
+      stockCache.clear();
+      clearMarketstackCache();
+      logger.info("DATA_FETCH", "Cache cleared manually via API");
+      res.json({ status: "success", message: "All caches cleared" });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to clear cache" });
     }
   });
 

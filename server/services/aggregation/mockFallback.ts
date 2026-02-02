@@ -4,9 +4,9 @@ const MOCK_STOCKS: Record<string, Omit<StockSnapshot, "meta">> = {
   AAPL: {
     symbol: "AAPL",
     companyName: "Apple Inc.",
-    price: 178.72,
-    change: 2.34,
-    changePercent: 1.33,
+    price: 185.92,
+    change: 1.25,
+    changePercent: 0.68,
     volume: 54000000,
     marketCap: 2800000000000,
     sector: "Technology",
@@ -47,9 +47,9 @@ const MOCK_STOCKS: Record<string, Omit<StockSnapshot, "meta">> = {
   MSFT: {
     symbol: "MSFT",
     companyName: "Microsoft Corporation",
-    price: 378.91,
-    change: 4.56,
-    changePercent: 1.22,
+    price: 405.22,
+    change: 2.45,
+    changePercent: 0.61,
     volume: 22000000,
     marketCap: 2800000000000,
     sector: "Technology",
@@ -85,9 +85,9 @@ const MOCK_STOCKS: Record<string, Omit<StockSnapshot, "meta">> = {
   GOOGL: {
     symbol: "GOOGL",
     companyName: "Alphabet Inc.",
-    price: 141.80,
-    change: -1.23,
-    changePercent: -0.86,
+    price: 151.72,
+    change: 0.85,
+    changePercent: 0.56,
     volume: 28000000,
     marketCap: 1780000000000,
     sector: "Technology",
@@ -124,8 +124,8 @@ const MOCK_STOCKS: Record<string, Omit<StockSnapshot, "meta">> = {
     symbol: "AMZN",
     companyName: "Amazon.com Inc.",
     price: 178.25,
-    change: 3.12,
-    changePercent: 1.78,
+    change: 1.15,
+    changePercent: 0.65,
     volume: 45000000,
     marketCap: 1850000000000,
     sector: "Consumer Cyclical",
@@ -162,8 +162,8 @@ const MOCK_STOCKS: Record<string, Omit<StockSnapshot, "meta">> = {
     symbol: "NVDA",
     companyName: "NVIDIA Corporation",
     price: 875.38,
-    change: 15.67,
-    changePercent: 1.82,
+    change: 12.45,
+    changePercent: 1.44,
     volume: 42000000,
     marketCap: 2150000000000,
     sector: "Technology",
@@ -199,9 +199,9 @@ const MOCK_STOCKS: Record<string, Omit<StockSnapshot, "meta">> = {
   META: {
     symbol: "META",
     companyName: "Meta Platforms Inc.",
-    price: 505.95,
-    change: 8.42,
-    changePercent: 1.69,
+    price: 485.58,
+    change: 5.12,
+    changePercent: 1.07,
     volume: 18000000,
     marketCap: 1280000000000,
     sector: "Technology",
@@ -237,9 +237,9 @@ const MOCK_STOCKS: Record<string, Omit<StockSnapshot, "meta">> = {
   TSLA: {
     symbol: "TSLA",
     companyName: "Tesla Inc.",
-    price: 248.50,
-    change: -5.30,
-    changePercent: -2.09,
+    price: 181.25,
+    change: -2.34,
+    changePercent: -1.27,
     volume: 95000000,
     marketCap: 790000000000,
     sector: "Consumer Cyclical",
@@ -348,11 +348,85 @@ const MOCK_STOCKS: Record<string, Omit<StockSnapshot, "meta">> = {
     options: {},
     historicalPrices: [],
   },
+  PG: {
+    symbol: "PG",
+    companyName: "Procter & Gamble Co.",
+    price: 165.42,
+    change: -0.85,
+    changePercent: -0.51,
+    volume: 6200000,
+    marketCap: 390000000000,
+    sector: "Consumer Defensive",
+    industry: "Household & Personal Products",
+    fundamentals: {
+      revenueGrowthYoY: [3.2, 4.5, 3.8],
+      epsGrowthYoY: [5.1, 6.2, 5.5],
+    },
+    technicals: {
+      atr: 2.1,
+      atrPercent: 1.27,
+      rsi: 52,
+      movingAverages: { ma20: 162.50, ma50: 160.20, ma200: 155.80 },
+      priceVsMA50: 3.26,
+      priceVsMA200: 6.17,
+      weeklyTrend: "UP",
+      dailyTrend: "UP",
+    },
+    sentiment: {},
+    options: {},
+    historicalPrices: [],
+  },
+  HD: {
+    symbol: "HD",
+    companyName: "Home Depot Inc.",
+    price: 362.15,
+    change: 2.45,
+    changePercent: 0.68,
+    volume: 3800000,
+    marketCap: 360000000000,
+    sector: "Consumer Cyclical",
+    industry: "Home Improvement Retail",
+    fundamentals: {
+      revenueGrowthYoY: [1.2, 2.5, 1.8],
+      epsGrowthYoY: [2.1, 3.5, 2.8],
+    },
+    technicals: {
+      atr: 5.5,
+      atrPercent: 1.52,
+      rsi: 58,
+      movingAverages: { ma20: 355.20, ma50: 350.80, ma200: 335.60 },
+      priceVsMA50: 3.23,
+      priceVsMA200: 7.91,
+      weeklyTrend: "UP",
+      dailyTrend: "UP",
+    },
+    sentiment: {},
+    options: {},
+    historicalPrices: [],
+  },
 };
+
+export const BENCHMARK_PRICES: Record<string, number> = {
+  AAPL: 185.92, MSFT: 405.22, GOOGL: 151.72, AMZN: 171.81, NVDA: 875.38, META: 485.58, TSLA: 181.25, JPM: 198.45, V: 279.30,
+  PG: 158.42, HD: 358.15, UNH: 505.14, LLY: 752.12, AVGO: 1320.45, COST: 725.12, MA: 460.12, ABBV: 178.45, PEP: 172.15,
+  SPY: 502.14, QQQ: 438.12, DIA: 389.25, IWM: 205.42,
+  DDOG: 132.88, CRWD: 304.55,
+};
+
+export const INDEX_DEFAULTS = {
+  spy: { symbol: "SPY", name: "S&P 500 ETF", price: 502.14, change: 1.25, changePercent: 0.25, trend: "UP" as const, above200DMA: true, momentum: "POSITIVE" as const, ma200: 485.00 },
+  qqq: { symbol: "QQQ", name: "Nasdaq 100 ETF", price: 438.12, change: -1.15, changePercent: -0.26, trend: "UP" as const, above200DMA: true, momentum: "POSITIVE" as const, ma200: 415.00 },
+  dia: { symbol: "DIA", name: "Dow Jones ETF", price: 389.25, change: 0.85, changePercent: 0.22, trend: "UP" as const, above200DMA: true, momentum: "POSITIVE" as const, ma200: 375.00 },
+  iwm: { symbol: "IWM", name: "Russell 2000 ETF", price: 205.42, change: -2.35, changePercent: -1.13, trend: "SIDEWAYS" as const, above200DMA: true, momentum: "NEUTRAL" as const, ma200: 198.00 },
+};
+
+export function getBenchmarkPrice(symbol: string): number | null {
+  return BENCHMARK_PRICES[symbol.toUpperCase()] || null;
+}
 
 export function getMockSnapshot(symbol: string): StockSnapshot | null {
   const mockData = MOCK_STOCKS[symbol.toUpperCase()];
-  
+
   if (!mockData) {
     return null;
   }

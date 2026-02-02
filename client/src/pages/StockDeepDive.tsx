@@ -278,7 +278,12 @@ export default function StockDeepDive() {
   const symbol = params.symbol?.toUpperCase() || "";
 
   const { data, isLoading, error, refetch } = useQuery<StockEvaluationResponse>({
-    queryKey: ["/api/stocks", symbol],
+    queryKey: ["/api/stocks", symbol, "STOCK_DETAIL"], // Cache context-specific
+    queryFn: async () => {
+      const res = await fetch(`/api/stocks/${symbol}?context=STOCK_DETAIL`);
+      if (!res.ok) throw new Error("Failed to fetch");
+      return res.json();
+    },
     enabled: !!symbol,
   });
 
@@ -347,9 +352,29 @@ export default function StockDeepDive() {
               <h1 className="text-3xl md:text-4xl font-bold tracking-tight">{data.stock.symbol}</h1>
               <p className="text-lg text-muted-foreground">{data.stock.companyName}</p>
             </div>
-            <div className="text-right">
-              <div className="text-2xl font-bold">${data.quote.price.toLocaleString("en-US", { minimumFractionDigits: 2 })}</div>
-              <div className="text-xs text-muted-foreground">Last market close</div>
+            <div className="text-right space-y-1">
+              {data.quote.price > 0 ? (
+                <div className="text-2xl font-bold">${data.quote.price.toLocaleString("en-US", { minimumFractionDigits: 2 })}</div>
+              ) : (
+                <div className="text-xl font-semibold text-muted-foreground italic">Price unavailable (EOD)</div>
+              )}
+              <div className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">
+                {data.priceLabel || "Last market close"}
+              </div>
+
+              {data.stock.intraday && (
+                <div className="flex flex-col items-end pt-1 border-t border-border/10">
+                  <div className="text-sm font-semibold text-foreground/60 transition-colors">
+                    ${data.stock.intraday.price.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                  </div>
+                  <div className={cn(
+                    "text-[10px] font-medium",
+                    data.stock.intraday.changePercent >= 0 ? "text-emerald-500" : "text-rose-500"
+                  )}>
+                    {data.stock.intraday.label}: {data.stock.intraday.changePercent >= 0 ? "+" : ""}{data.stock.intraday.changePercent.toFixed(2)}%
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
