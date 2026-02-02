@@ -24,36 +24,14 @@ import { rankStocks } from "../../domain/ranking/relativeRankingEngine";
 import type { PortfolioSnapshot } from "@shared/types/portfolio";
 import { deriveHorizonLabel } from "../../domain/calibration";
 import { getDecisionLabel } from "../../domain/decisionLabels";
+import {
+  getDashboardSample,
+  getUniverseStock,
+  getMarketCapCategory as getMarketCap
+} from "./stockUniverse";
 
-// Stock universe with market cap categories for diversity filtering
-// Mega Cap: > $200B, Large Cap: $10B-200B, Mid Cap: $2B-10B, Small Cap: < $2B
-const STOCK_UNIVERSE = {
-  megaCap: ["AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "TSLA", "BRK.B", "LLY", "UNH"],
-  largeCap: ["JPM", "V", "MA", "HD", "CRM", "NFLX", "COST", "AMD", "ORCL", "ADBE"],
-  midCap: ["SNAP", "ROKU", "PINS", "CRWD", "DDOG", "ZS", "NET", "SNOW", "BILL", "MDB"],
-  smallCap: ["UPST", "AFRM", "SOFI", "HOOD", "RIVN", "LCID", "PLTR", "PATH", "U", "RBLX"],
-};
-
-// Full list of all tracked symbols (for list views)
-const ALL_TRACKED_SYMBOLS = [
-  ...STOCK_UNIVERSE.megaCap,
-  ...STOCK_UNIVERSE.largeCap,
-  ...STOCK_UNIVERSE.midCap,
-  ...STOCK_UNIVERSE.smallCap,
-];
-
-// Dashboard subset (limited to 9 for performance)
-const DASHBOARD_SYMBOLS = [
-  "AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "TSLA", "JPM", "V"
-];
-
-// Market cap category lookup
-function getMarketCapCategory(symbol: string): "megaCap" | "largeCap" | "midCap" | "smallCap" {
-  if (STOCK_UNIVERSE.megaCap.includes(symbol)) return "megaCap";
-  if (STOCK_UNIVERSE.largeCap.includes(symbol)) return "largeCap";
-  if (STOCK_UNIVERSE.midCap.includes(symbol)) return "midCap";
-  return "smallCap";
-}
+// Dashboard symbols from universe service
+const DASHBOARD_SYMBOLS = getDashboardSample(9);
 
 // Fallback sector mapping for known symbols when provider data is unavailable
 const SYMBOL_SECTOR_MAP: Record<string, string> = {
@@ -460,5 +438,9 @@ export async function fetchDashboardStocks(): Promise<DashboardStock[]> {
     };
   });
 
-  return dashboardStocks;
+  // Apply dashboard rotation to select 6 curated stocks
+  const { selectDashboardStocks } = await import("./dashboardRotation");
+  const curatedStocks = selectDashboardStocks(dashboardStocks, marketContext.regime);
+
+  return curatedStocks;
 }
