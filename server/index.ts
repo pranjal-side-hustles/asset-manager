@@ -2,6 +2,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
+import { logDataMode } from "./domain/dataMode";
 
 declare module "http" {
   interface IncomingMessage {
@@ -100,6 +101,7 @@ export async function createApp(options: CreateAppOptions = {}) {
 /** Standalone server entry: only listen when not on Vercel (Vercel uses api/ handler). */
 async function main() {
   const { app, httpServer } = await createApp({ apiOnly: false });
+  logDataMode();
 
   if (process.env.VERCEL) {
     return;

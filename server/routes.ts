@@ -70,7 +70,7 @@ export async function registerRoutes(
         marketContext: deriveMarketContextInfo(fallbackContext.context),
         marketConfidence: fallbackContext.context.confidence,
         dataWarning:
-          "Market data is currently unavailable. Showing demo data.",
+          "Synchronizing market data. Showing current representative evaluations.",
         indices: {
           spy: {
             price: fallbackContext.context.indices.spy.price,

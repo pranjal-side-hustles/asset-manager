@@ -25,8 +25,10 @@ import type { PortfolioSnapshot } from "@shared/types/portfolio";
 import { deriveHorizonLabel } from "../../domain/calibration";
 import { getDecisionLabel } from "../../domain/decisionLabels";
 import {
-  getDashboardSample
+  getDashboardSample,
+  getUniverseStock
 } from "./stockUniverse";
+import { selectDashboardStocks } from "./dashboardRotation";
 
 // Fallback sector mapping for known symbols when provider data is unavailable
 const SYMBOL_SECTOR_MAP: Record<string, string> = {
@@ -442,17 +444,29 @@ export async function fetchDashboardStocks(): Promise<DashboardStock[]> {
   });
 
   // Lookup market cap for each stock to avoid async calls in rotation
-  const { getUniverseStock } = await import("./stockUniverse");
   for (const s of dashboardStocks) {
-    const u = await getUniverseStock(s.symbol);
-    if (u) {
-      s.marketCapCategory = u.marketCapCategory;
+    try {
+      const u = await getUniverseStock(s.symbol);
+      if (u) {
+        s.marketCapCategory = u.marketCapCategory;
+      }
+    } catch (e) {
+      logger.warn("DATA_FETCH", `Failed to lookup market cap for ${s.symbol}`);
     }
   }
 
   // Apply dashboard rotation to select 6 curated stocks
-  const { selectDashboardStocks } = await import("./dashboardRotation");
-  const curatedStocks = selectDashboardStocks(dashboardStocks, marketContext.regime);
-
-  return curatedStocks;
+  try {
+    const curatedStocks = selectDashboardStocks(dashboardStocks, marketContext.regime);
+    if (!curatedStocks || curatedStocks.length === 0) {
+      logger.warn("DATA_FETCH", "Dashboard rotation returned zero stocks - using raw evaluated list");
+      return dashboardStocks.slice(0, 6);
+    }
+    return curatedStocks;
+  } catch (error) {
+    logger.error("DATA_FETCH", "Dashboard rotation crashed - falling back to raw list", {
+      error: error instanceof Error ? error.message : String(error)
+    });
+    return dashboardStocks.slice(0, 6);
+  }
 }

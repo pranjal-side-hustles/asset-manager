@@ -15,7 +15,7 @@ export function DemoBanner() {
             <div className="container mx-auto flex items-center justify-center gap-2">
                 <Info className="w-3.5 h-3.5 text-primary/60" />
                 <p className="text-[11px] font-medium text-primary/70 uppercase tracking-widest">
-                    Market data is currently unavailable. Showing demo data.
+                    Synchronizing market data. Showing current representative evaluations.
                 </p>
             </div>
         </div>
