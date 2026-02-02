@@ -406,9 +406,18 @@ const MOCK_STOCKS: Record<string, Omit<StockSnapshot, "meta">> = {
   },
 };
 
-const BENCHMARK_PRICES: Record<string, number> = {
-  AAPL: 185, MSFT: 405, GOOGL: 151, AMZN: 178, NVDA: 875, META: 485, TSLA: 181, JPM: 198, V: 279,
-  PG: 165, HD: 362, UNH: 505, LLY: 752, AVGO: 1320, COST: 725, MA: 460, ABBV: 178, PEP: 172,
+export const BENCHMARK_PRICES: Record<string, number> = {
+  AAPL: 185.92, MSFT: 405.22, GOOGL: 151.72, AMZN: 171.81, NVDA: 875.38, META: 485.58, TSLA: 181.25, JPM: 198.45, V: 279.30,
+  PG: 158.42, HD: 358.15, UNH: 505.14, LLY: 752.12, AVGO: 1320.45, COST: 725.12, MA: 460.12, ABBV: 178.45, PEP: 172.15,
+  SPY: 502.14, QQQ: 438.12, DIA: 389.25, IWM: 205.42,
+  DDOG: 132.88, CRWD: 304.55,
+};
+
+export const INDEX_DEFAULTS = {
+  spy: { symbol: "SPY", name: "S&P 500 ETF", price: 502.14, change: 1.25, changePercent: 0.25, trend: "UP" as const, above200DMA: true, momentum: "POSITIVE" as const, ma200: 485.00 },
+  qqq: { symbol: "QQQ", name: "Nasdaq 100 ETF", price: 438.12, change: -1.15, changePercent: -0.26, trend: "UP" as const, above200DMA: true, momentum: "POSITIVE" as const, ma200: 415.00 },
+  dia: { symbol: "DIA", name: "Dow Jones ETF", price: 389.25, change: 0.85, changePercent: 0.22, trend: "UP" as const, above200DMA: true, momentum: "POSITIVE" as const, ma200: 375.00 },
+  iwm: { symbol: "IWM", name: "Russell 2000 ETF", price: 205.42, change: -2.35, changePercent: -1.13, trend: "SIDEWAYS" as const, above200DMA: true, momentum: "NEUTRAL" as const, ma200: 198.00 },
 };
 
 export function getBenchmarkPrice(symbol: string): number | null {

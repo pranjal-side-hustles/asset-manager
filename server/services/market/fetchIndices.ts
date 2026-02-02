@@ -1,6 +1,7 @@
 import { IndexState, TrendDirection, Momentum } from "../../../shared/types/marketContext";
 import { logger } from "../../infra/logging/logger";
 import { fetchMarketstackEOD, isMarketstackAvailable } from "../providers/marketstack";
+import { getBenchmarkPrice, INDEX_DEFAULTS } from "../aggregation/mockFallback";
 
 interface IndexConfig {
   symbol: string;
@@ -45,6 +46,16 @@ async function fetchIndexQuote(config: IndexConfig): Promise<{
     if (ohlc.length >= 200) {
       const closes = ohlc.slice(0, 200).map(c => c.close);
       sma200 = closes.reduce((a, b) => a + b, 0) / closes.length;
+    }
+
+    const benchmark = getBenchmarkPrice(config.symbol);
+    // Indices are less volatile than stocks, so 15% is a generous sanity threshold
+    if (benchmark && (Math.abs(eod.close - benchmark) / benchmark > 0.15)) {
+      logger.withContext({ symbol: config.symbol }).warn(
+        "DATA_FETCH",
+        `Suspicious index price for ${config.symbol}: $${eod.close} (Benchmark: $${benchmark}). Rejecting.`
+      );
+      return null;
     }
 
     logger.withContext({ symbol: config.symbol }).dataFetch("Index EOD from Marketstack", {
@@ -134,27 +145,13 @@ export async function fetchAllIndices(): Promise<{
   }
 
   const indices = {
-    spy: validResults.find((r) => r.key === "spy")?.state.price ? validResults.find((r) => r.key === "spy")!.state : createDefaultIndex("SPY", "S&P 500 ETF", 502.14),
-    qqq: validResults.find((r) => r.key === "qqq")?.state.price ? validResults.find((r) => r.key === "qqq")!.state : createDefaultIndex("QQQ", "Nasdaq 100 ETF", 438.12),
-    dia: validResults.find((r) => r.key === "dia")?.state.price ? validResults.find((r) => r.key === "dia")!.state : createDefaultIndex("DIA", "Dow Jones ETF", 389.25),
-    iwm: validResults.find((r) => r.key === "iwm")?.state.price ? validResults.find((r) => r.key === "iwm")!.state : createDefaultIndex("IWM", "Russell 2000 ETF", 205.42),
+    spy: results.find((r) => r?.key === "spy")?.state || INDEX_DEFAULTS.spy,
+    qqq: results.find((r) => r?.key === "qqq")?.state || INDEX_DEFAULTS.qqq,
+    dia: results.find((r) => r?.key === "dia")?.state || INDEX_DEFAULTS.dia,
+    iwm: results.find((r) => r?.key === "iwm")?.state || INDEX_DEFAULTS.iwm,
   };
 
   logger.dataFetch(`Fetched ${validResults.length}/4 indices from Marketstack (EOD)`, { providersUsed, providersFailed });
 
   return { indices, providersUsed, providersFailed };
-}
-
-function createDefaultIndex(symbol: string, name: string, price: number): IndexState {
-  return {
-    symbol,
-    name,
-    price,
-    change: 0,
-    changePercent: 0,
-    trend: "SIDEWAYS",
-    above200DMA: true,
-    momentum: "NEUTRAL",
-    ma200: price * 0.95,
-  };
 }

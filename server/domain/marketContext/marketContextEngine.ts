@@ -9,17 +9,13 @@ import { fetchVIX } from "../../services/market/fetchVolatility";
 import { evaluateMarketRegime } from "./regimeEvaluator";
 import { logger } from "../../infra/logging/logger";
 import { isDemoMode } from "../../domain/dataMode";
+import { INDEX_DEFAULTS } from "../../services/aggregation/mockFallback";
 
 let cachedContext: MarketContextSnapshot | null = null;
 let cacheTimestamp: number = 0;
 const CACHE_TTL_MS = 5 * 60 * 60 * 1000; // 5 hours
 
-const defaultIndices = {
-  spy: { symbol: "SPY", name: "S&P 500 ETF", price: 475.20, change: 1.25, changePercent: 0.26, trend: "SIDEWAYS" as const, above200DMA: true, momentum: "NEUTRAL" as const, ma200: 460.00 },
-  qqq: { symbol: "QQQ", name: "Nasdaq 100 ETF", price: 412.50, change: -0.45, changePercent: -0.11, trend: "SIDEWAYS" as const, above200DMA: true, momentum: "NEUTRAL" as const, ma200: 395.00 },
-  dia: { symbol: "DIA", name: "Dow Jones ETF", price: 378.10, change: 0.85, changePercent: 0.23, trend: "SIDEWAYS" as const, above200DMA: true, momentum: "NEUTRAL" as const, ma200: 365.00 },
-  iwm: { symbol: "IWM", name: "Russell 2000 ETF", price: 202.15, change: 0.35, changePercent: 0.17, trend: "SIDEWAYS" as const, above200DMA: true, momentum: "NEUTRAL" as const, ma200: 195.00 },
-};
+const defaultIndices = INDEX_DEFAULTS;
 
 /** Fallback when market context fetch fails (e.g. missing API keys, timeout). */
 export function getDefaultMarketContextSnapshot(reason?: string): MarketContextSnapshot {

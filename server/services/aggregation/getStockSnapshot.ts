@@ -180,8 +180,8 @@ export async function getStockSnapshot(symbol: string): Promise<StockSnapshot | 
     const priceAvailable = quote.price > 0 && marketData.priceStatus.source !== "Unavailable";
     const benchmark = getBenchmarkPrice(upperSymbol);
 
-    // Sanity check: If the provider returns a price that is > 30% away from benchmark, it's likely bad data
-    if (priceAvailable && benchmark && (Math.abs(quote.price - benchmark) / benchmark > 0.30)) {
+    // Sanity check: If the provider returns a price that is > 20% away from benchmark, it's likely bad data
+    if (priceAvailable && benchmark && (Math.abs(quote.price - benchmark) / benchmark > 0.20)) {
       log.warn("DATA_FETCH", `Provider returned suspicious price for ${upperSymbol}: $${quote.price} (Benchmark: $${benchmark}). Falling back to mock.`);
       return getMockSnapshot(upperSymbol) || generateGenericMock(upperSymbol);
     }
