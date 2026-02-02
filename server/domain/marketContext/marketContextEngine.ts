@@ -37,8 +37,8 @@ export function getDefaultMarketContextSnapshot(reason?: string): MarketContextS
     context,
     meta: {
       providersUsed: [],
-      providersFailed: ["Finnhub", "Marketstack", "FMP"],
-      warnings: [reason || "Market context unavailable. Set FINNHUB_API_KEY, MARKETSTACK_API_KEY, FMP_API_KEY in Environment Variables."],
+      providersFailed: ["Finnhub", "Marketstack"],
+      warnings: [reason || "Market data unavailable. Please configure required data providers and redeploy."],
       cacheHit: false,
     },
   };
@@ -46,10 +46,10 @@ export function getDefaultMarketContextSnapshot(reason?: string): MarketContextS
 
 export async function getMarketContext(forceRefresh = false): Promise<MarketContextSnapshot> {
   const now = Date.now();
-  
+
   if (!forceRefresh && cachedContext && (now - cacheTimestamp) < CACHE_TTL_MS) {
     logger.cacheHit(`Market context cache hit (age: ${Math.round((now - cacheTimestamp) / 1000)}s)`);
-    
+
     return {
       ...cachedContext,
       meta: {
