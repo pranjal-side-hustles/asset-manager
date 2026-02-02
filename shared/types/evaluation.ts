@@ -85,6 +85,13 @@ export interface DashboardResponse {
   marketRegime?: "RISK_ON" | "RISK_OFF" | "NEUTRAL";
   marketContext?: MarketContextInfo;
   marketConfidence?: "HIGH" | "MEDIUM" | "LOW";
+  /** Index ETF data for market context display */
+  indices?: {
+    spy: { price: number; changePercent: number; trend: string; above200DMA: boolean };
+    qqq: { price: number; changePercent: number; trend: string; above200DMA: boolean };
+    dia: { price: number; changePercent: number; trend: string; above200DMA: boolean };
+    iwm: { price: number; changePercent: number; trend: string; above200DMA: boolean };
+  };
   /** Shown when API keys are missing or data fetch failed; app still loads. */
   dataWarning?: string;
 }
