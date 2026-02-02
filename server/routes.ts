@@ -7,6 +7,7 @@ import { ENGINE_VERSIONS } from "./domain/engineMeta";
 import { getMarketContext, getDefaultMarketContextSnapshot } from "./domain/marketContext/marketContextEngine";
 import { evaluatePhase3ForSymbol } from "./domain/phase3";
 import { evaluatePhase4ForSymbol } from "./domain/phase4";
+import { isUniverseDemoMode } from "./services/stocks/stockUniverse";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -22,6 +23,7 @@ export async function registerRoutes(
       res.json({
         stocks,
         lastUpdated: Date.now(),
+        isDemoMode: isUniverseDemoMode() || marketContext.meta.isDemoMode,
         marketRegime: marketContext.context.regime,
         marketContext: deriveMarketContextInfo(marketContext.context),
         marketConfidence: marketContext.context.confidence,
@@ -63,6 +65,7 @@ export async function registerRoutes(
       res.status(200).json({
         stocks: [],
         lastUpdated: Date.now(),
+        isDemoMode: true,
         marketRegime: fallbackContext.context.regime,
         marketContext: deriveMarketContextInfo(fallbackContext.context),
         marketConfidence: fallbackContext.context.confidence,

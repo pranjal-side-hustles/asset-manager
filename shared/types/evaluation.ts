@@ -27,6 +27,7 @@ export interface StockEvaluationResponse {
   providersUsed?: string[];
   marketRegime?: "RISK_ON" | "RISK_OFF" | "NEUTRAL";
   marketContext?: MarketContextInfo;
+  isDemoMode?: boolean;
   decisionLabel?: {
     displayText: string;
     explanation: string;
@@ -94,4 +95,5 @@ export interface DashboardResponse {
   };
   /** Shown when API keys are missing or data fetch failed; app still loads. */
   dataWarning?: string;
+  isDemoMode?: boolean;
 }

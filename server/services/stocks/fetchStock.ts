@@ -25,13 +25,8 @@ import type { PortfolioSnapshot } from "@shared/types/portfolio";
 import { deriveHorizonLabel } from "../../domain/calibration";
 import { getDecisionLabel } from "../../domain/decisionLabels";
 import {
-  getDashboardSample,
-  getUniverseStock,
-  getMarketCapCategory as getMarketCap
+  getDashboardSample
 } from "./stockUniverse";
-
-// Dashboard symbols from universe service
-const DASHBOARD_SYMBOLS = getDashboardSample(9);
 
 // Fallback sector mapping for known symbols when provider data is unavailable
 const SYMBOL_SECTOR_MAP: Record<string, string> = {
@@ -285,11 +280,19 @@ export function deriveMarketContextInfo(marketContext: MarketContext): MarketCon
 }
 
 export async function fetchDashboardStocks(): Promise<DashboardStock[]> {
+  // 1. Get symbols from the tracked universe (async bootstrap)
+  const dashboardSymbols = await getDashboardSample(9);
+
+  if (dashboardSymbols.length === 0) {
+    logger.warn("DATA_FETCH", "No symbols available in tracked universe. Check API keys.");
+    return [];
+  }
+
   // PRIORITY: Fetch stocks FIRST before market context
   // With 100 calls/month quota, stocks take priority over indices/sectors
   // Fetch stocks SEQUENTIALLY to avoid quota race conditions
   const results: PromiseSettledResult<StockSnapshot | null>[] = [];
-  for (const symbol of DASHBOARD_SYMBOLS) {
+  for (const symbol of dashboardSymbols) {
     try {
       const snapshot = await getStockSnapshot(symbol);
       results.push({ status: "fulfilled", value: snapshot });
@@ -316,7 +319,7 @@ export async function fetchDashboardStocks(): Promise<DashboardStock[]> {
 
   for (let i = 0; i < results.length; i++) {
     const result = results[i];
-    const symbol = DASHBOARD_SYMBOLS[i];
+    const symbol = dashboardSymbols[i];
 
     if (result.status === "fulfilled" && result.value) {
       const snapshot = result.value;
