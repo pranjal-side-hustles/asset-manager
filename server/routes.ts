@@ -71,6 +71,32 @@ export async function registerRoutes(
         marketConfidence: fallbackContext.context.confidence,
         dataWarning:
           "Market data is currently unavailable. Showing demo data.",
+        indices: {
+          spy: {
+            price: fallbackContext.context.indices.spy.price,
+            changePercent: fallbackContext.context.indices.spy.changePercent,
+            trend: fallbackContext.context.indices.spy.trend,
+            above200DMA: fallbackContext.context.indices.spy.above200DMA,
+          },
+          qqq: {
+            price: fallbackContext.context.indices.qqq.price,
+            changePercent: fallbackContext.context.indices.qqq.changePercent,
+            trend: fallbackContext.context.indices.qqq.trend,
+            above200DMA: fallbackContext.context.indices.qqq.above200DMA,
+          },
+          dia: {
+            price: fallbackContext.context.indices.dia.price,
+            changePercent: fallbackContext.context.indices.dia.changePercent,
+            trend: fallbackContext.context.indices.dia.trend,
+            above200DMA: fallbackContext.context.indices.dia.above200DMA,
+          },
+          iwm: {
+            price: fallbackContext.context.indices.iwm.price,
+            changePercent: fallbackContext.context.indices.iwm.changePercent,
+            trend: fallbackContext.context.indices.iwm.trend,
+            above200DMA: fallbackContext.context.indices.iwm.above200DMA,
+          },
+        },
       });
     }
   });
