@@ -25,6 +25,32 @@ export async function registerRoutes(
         marketRegime: marketContext.context.regime,
         marketContext: deriveMarketContextInfo(marketContext.context),
         marketConfidence: marketContext.context.confidence,
+        indices: {
+          spy: {
+            price: marketContext.context.indices.spy.price,
+            changePercent: marketContext.context.indices.spy.changePercent,
+            trend: marketContext.context.indices.spy.trend,
+            above200DMA: marketContext.context.indices.spy.above200DMA,
+          },
+          qqq: {
+            price: marketContext.context.indices.qqq.price,
+            changePercent: marketContext.context.indices.qqq.changePercent,
+            trend: marketContext.context.indices.qqq.trend,
+            above200DMA: marketContext.context.indices.qqq.above200DMA,
+          },
+          dia: {
+            price: marketContext.context.indices.dia.price,
+            changePercent: marketContext.context.indices.dia.changePercent,
+            trend: marketContext.context.indices.dia.trend,
+            above200DMA: marketContext.context.indices.dia.above200DMA,
+          },
+          iwm: {
+            price: marketContext.context.indices.iwm.price,
+            changePercent: marketContext.context.indices.iwm.changePercent,
+            trend: marketContext.context.indices.iwm.trend,
+            above200DMA: marketContext.context.indices.iwm.above200DMA,
+          },
+        },
       });
     } catch (error) {
       logger.error("DATA_FETCH", "Error fetching dashboard data", {
