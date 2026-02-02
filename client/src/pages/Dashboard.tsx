@@ -184,13 +184,13 @@ export default function Dashboard() {
             {/* Stock Grid */}
             {filteredStocks.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {filteredStocks.slice(0, activeFilter === "all" ? 6 : 15).map((stock) => (
+                {filteredStocks.slice(0, activeFilter === "all" ? 9 : 15).map((stock) => (
                   <StockCard key={stock.symbol} stock={stock} />
                 ))}
               </div>
             ) : activeFilter !== "all" ? (
               <div className="py-16 text-center space-y-3">
-                <p className="text-muted-foreground text-lg">No stocks qualify right now.</p>
+                <p className="text-muted-foreground text-lg">No stocks meet this criteria right now.</p>
                 <p className="text-sm text-muted-foreground/70">This is normal during cautious markets.</p>
                 <Button variant="ghost" size="sm" onClick={handleClearFilter} className="mt-4">
                   Back to Overview
