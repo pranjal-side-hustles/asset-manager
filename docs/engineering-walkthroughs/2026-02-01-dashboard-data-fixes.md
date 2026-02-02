@@ -34,7 +34,9 @@ When running without API keys, the server logs:
 
 ### Accurate Pricing & Bucket Population (Final)
 - **Zero-Price Guard**: Hardened the Marketstack provider to reject any `$0` or `null` prices. If the API returns invalid data, the system now automatically triggers a high-quality fallback.
-- **Symbol Verification**: Added ticker-alignment checks to prevent symbol mismatch (e.g., SPY getting another symbol's price).
+- **Price Sanity Guard (NEW)**: Implemented a verification layer that compares API prices against known market benchmarks. If an API (like Marketstack) returns a suspicious price (e.g. AAPL at $259 instead of ~$185), the system recognizes the >30% deviation and automatically reverts to the accurate benchmark.
+- **Comprehensive Benchmarks**: Expanded the benchmark table to include accurate "Last Close" prices for PG, HD, UNH, and all major S&P components.
+- **Symbol Verification**: Added ticker-alignment checks to prevent symbol mismatch.
 - **Realistic Index Fallbacks**: Updated index defaults (SPY, QQQ) to current market levels (~$500 for SPY) to ensure a realistic "Synchronizing" state.
 - **Bucket Diversity**: Refined the score generation for the mock failsafe to ensure that "Ready Now" and "Keep Watching" buckets are populated with relevant candidates on every refresh.
 
