@@ -441,6 +441,15 @@ export async function fetchDashboardStocks(): Promise<DashboardStock[]> {
     };
   });
 
+  // Lookup market cap for each stock to avoid async calls in rotation
+  const { getUniverseStock } = await import("./stockUniverse");
+  for (const s of dashboardStocks) {
+    const u = await getUniverseStock(s.symbol);
+    if (u) {
+      s.marketCapCategory = u.marketCapCategory;
+    }
+  }
+
   // Apply dashboard rotation to select 6 curated stocks
   const { selectDashboardStocks } = await import("./dashboardRotation");
   const curatedStocks = selectDashboardStocks(dashboardStocks, marketContext.regime);

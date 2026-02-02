@@ -7,7 +7,7 @@
 
 import { logger } from "../../infra/logging/logger";
 import type { DashboardStock } from "@shared/types";
-import { getTrackedUniverse, type MarketCapCategory } from "./stockUniverse";
+import type { MarketCapCategory } from "@shared/types/evaluation";
 
 // ============================================================================
 // TYPES
@@ -86,9 +86,7 @@ function getSector(stock: DashboardStock): string {
  * Get market cap category for a stock.
  */
 function getMarketCap(stock: DashboardStock): MarketCapCategory {
-    // Infer from universe or use heuristics
-    const universeStock = getTrackedUniverse().find(u => u.symbol === stock.symbol);
-    return universeStock?.marketCapCategory || "largeCap";
+    return stock.marketCapCategory || "largeCap";
 }
 
 /**

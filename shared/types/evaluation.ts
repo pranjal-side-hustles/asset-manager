@@ -1,6 +1,8 @@
 import type { StrategicGrowthEvaluation, TacticalSentinelEvaluation, StrategicGrowthStatus, TacticalSentinelStatus, StrategicLabels, TacticalLabels } from "./horizon";
 import type { Stock, StockQuote, DataConfidence } from "./stock";
 
+export type MarketCapCategory = "megaCap" | "largeCap" | "midCap" | "smallCap";
+
 export interface MarketContextInfo {
   label: "Supportive" | "Mixed" | "Cautious";
   description: string;
@@ -55,6 +57,7 @@ export interface DashboardStock {
   sector?: string;
   sectorRegime?: "FAVORED" | "NEUTRAL" | "AVOID";
   portfolioAction?: "ALLOW" | "REDUCE" | "BLOCK";
+  marketCapCategory?: MarketCapCategory;
   capitalPriority?: "BUY" | "ACCUMULATE" | "PILOT" | "WATCH" | "BLOCKED";
   rankInSector?: number;
   phase2Reasons?: string[];
